@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.includes('yarn')) { console.error('Use Yarn only: run `yarn install` instead of npm/pnpm.'); process.exit(1); }\"",
+    "preinstall": "node ./scripts/enforce-yarn.js",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
