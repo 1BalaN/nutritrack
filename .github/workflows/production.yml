@@ -16,6 +16,8 @@ jobs:
   build-production:
     name: EAS Production Build
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,12 +35,20 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ env.EXPO_TOKEN }}
+
+      - name: Validate EXPO_TOKEN
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN is not set. Add it in: GitHub Repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
 
       - name: Build Android (AAB)
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' || github.event_name == 'push' }}
         run: eas build --platform android --profile production --non-interactive
         env:
+          EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -50,6 +60,7 @@ jobs:
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
         run: eas build --platform ios --profile production --non-interactive
         env:
+          EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
