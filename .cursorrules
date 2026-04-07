@@ -1,0 +1,22 @@
+This is my own project with strict academic requirements.
+
+AGENTS.md defines coding standards, architecture patterns, and implementation rules.
+docs/tech-spec.md is the single source of truth for product requirements, system architecture, and acceptance criteria.
+
+Always:
+- Follow AGENTS.md for code style, folder structure, naming, and architectural decisions
+- Implement features strictly according to docs/tech-spec.md
+- Prioritize Must-have requirements from tech-spec.md, then Should-have, then Could-have
+- Do NOT simplify, omit, or change requirements from tech-spec.md
+- Do NOT invent features, APIs, or behavior not described in tech-spec.md unless explicitly instructed
+- If something is unclear, ask for clarification instead of guessing
+
+Conflict resolution:
+- Product behavior and scope → tech-spec.md overrides
+- Code style and architecture patterns → AGENTS.md overrides
+
+Quality rules:
+- Write production-grade code, not toy examples
+- Include types, validation, and error handling
+- Prefer scalable and modular architecture
+- Avoid shortcuts that reduce academic or production value

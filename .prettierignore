@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+dist/
+build/
+drizzle/
+package-lock.json
+package.json
+*.lock
