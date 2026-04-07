@@ -1,6 +1,11 @@
 {
   "name": "nutritrack",
   "version": "1.0.0",
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20",
+    "yarn": ">=1.22.0"
+  },
   "main": "expo-router/entry",
   "scripts": {
     "preinstall": "node ./scripts/enforce-yarn.js",
@@ -34,6 +39,7 @@
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-mmkv": "^4.3.1",
+    "react-native-nitro-modules": "^0.35.3",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
