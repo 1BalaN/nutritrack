@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_BUILD_AUTOCOMMIT: "1"
+      EAS_BUILD_NO_EXPO_GO_WARNING: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,6 +51,8 @@ jobs:
         run: eas build --platform android --profile production --non-interactive
         env:
           EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
+          EAS_BUILD_AUTOCOMMIT: ${{ env.EAS_BUILD_AUTOCOMMIT }}
+          EAS_BUILD_NO_EXPO_GO_WARNING: ${{ env.EAS_BUILD_NO_EXPO_GO_WARNING }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -61,6 +65,8 @@ jobs:
         run: eas build --platform ios --profile production --non-interactive
         env:
           EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
+          EAS_BUILD_AUTOCOMMIT: ${{ env.EAS_BUILD_AUTOCOMMIT }}
+          EAS_BUILD_NO_EXPO_GO_WARNING: ${{ env.EAS_BUILD_NO_EXPO_GO_WARNING }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
