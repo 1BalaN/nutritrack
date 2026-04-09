@@ -48,7 +48,22 @@ jobs:
 
       - name: Build Android (AAB)
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' || github.event_name == 'push' }}
-        run: eas build --platform android --profile production --non-interactive
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            echo "Android EAS build attempt $attempt/3"
+            if eas build --platform android --profile production --non-interactive; then
+              echo "Android build succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep_for=$((attempt * 60))
+              echo "Build failed. Retrying in ${sleep_for}s..."
+              sleep "$sleep_for"
+            fi
+          done
+          echo "Android build failed after 3 attempts."
+          exit 1
         env:
           EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
           EAS_BUILD_AUTOCOMMIT: ${{ env.EAS_BUILD_AUTOCOMMIT }}
@@ -62,7 +77,22 @@ jobs:
 
       - name: Build iOS (IPA)
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
-        run: eas build --platform ios --profile production --non-interactive
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            echo "iOS EAS build attempt $attempt/3"
+            if eas build --platform ios --profile production --non-interactive; then
+              echo "iOS build succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep_for=$((attempt * 60))
+              echo "Build failed. Retrying in ${sleep_for}s..."
+              sleep "$sleep_for"
+            fi
+          done
+          echo "iOS build failed after 3 attempts."
+          exit 1
         env:
           EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
           EAS_BUILD_AUTOCOMMIT: ${{ env.EAS_BUILD_AUTOCOMMIT }}
