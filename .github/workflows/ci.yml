@@ -31,3 +31,6 @@ jobs:
 
       - name: Format check
         run: yarn format:check
+
+      - name: Unit tests
+        run: yarn test
