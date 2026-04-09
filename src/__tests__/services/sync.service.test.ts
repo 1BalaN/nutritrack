@@ -40,8 +40,8 @@ jest.mock('@/store/sync.store', () => ({
     setPendingCount: jest.fn(),
   },
   useSyncStore: {
-    getState: jest.fn(() =>
-      (jest.requireMock('@/store/sync.store') as { __mockSyncState: unknown }).__mockSyncState
+    getState: jest.fn(
+      () => (jest.requireMock('@/store/sync.store') as { __mockSyncState: unknown }).__mockSyncState
     ),
     setState: jest.fn(),
   },
@@ -199,7 +199,12 @@ describe('syncService.sync', () => {
     const { normalizeError } = api as {
       normalizeError: jest.Mock
     }
-    normalizeError.mockReturnValueOnce({ message: 'conflict', status: 409, code: null, isNetworkError: false })
+    normalizeError.mockReturnValueOnce({
+      message: 'conflict',
+      status: 409,
+      code: null,
+      isNetworkError: false,
+    })
     api.apiClient.post.mockRejectedValue(conflictError)
     pending.delete.mockResolvedValue(undefined)
 

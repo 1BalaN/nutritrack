@@ -39,9 +39,7 @@ async function loadRecipeWithIngredients(recipeRow: RecipeRow): Promise<Recipe> 
   }
 }
 
-async function calcTotalsForIngredients(
-  ingredients: Array<{ productId: string; grams: number }>
-) {
+async function calcTotalsForIngredients(ingredients: Array<{ productId: string; grams: number }>) {
   let totalKcal = 0
   let totalProtein = 0
   let totalFat = 0

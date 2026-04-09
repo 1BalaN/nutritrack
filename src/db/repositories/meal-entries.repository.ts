@@ -50,11 +50,7 @@ export const mealEntriesRepository = {
   },
 
   async findById(id: string): Promise<MealEntry | null> {
-    const rows = await db
-      .select()
-      .from(mealEntries)
-      .where(eq(mealEntries.id, id))
-      .limit(1)
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.id, id)).limit(1)
     return rows[0] ? toMealEntry(rows[0]) : null
   },
 
@@ -156,10 +152,7 @@ export const mealEntriesRepository = {
   async markSynced(ids: string[]): Promise<void> {
     if (ids.length === 0) return
     const ts = now()
-    await db
-      .update(mealEntries)
-      .set({ syncedAt: ts })
-      .where(inArray(mealEntries.id, ids))
+    await db.update(mealEntries).set({ syncedAt: ts }).where(inArray(mealEntries.id, ids))
   },
 
   async summarizeByDate(date: string): Promise<NutritionSummary> {

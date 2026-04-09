@@ -20,10 +20,7 @@ export const appStorage = {
 
   addLastUsedProduct(productId: string): void {
     const current = this.getLastUsedProducts()
-    const updated = [productId, ...current.filter((id) => id !== productId)].slice(
-      0,
-      MAX_LAST_USED
-    )
+    const updated = [productId, ...current.filter((id) => id !== productId)].slice(0, MAX_LAST_USED)
     this.setLastUsedProducts(updated)
   },
 

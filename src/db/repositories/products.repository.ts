@@ -37,11 +37,7 @@ export const productsRepository = {
   },
 
   async findByBarcode(barcode: string): Promise<Product | null> {
-    const rows = await db
-      .select()
-      .from(products)
-      .where(eq(products.barcode, barcode))
-      .limit(1)
+    const rows = await db.select().from(products).where(eq(products.barcode, barcode)).limit(1)
     return rows[0] ? toProduct(rows[0]) : null
   },
 
@@ -56,11 +52,7 @@ export const productsRepository = {
   },
 
   async findRecent(limit = 20): Promise<Product[]> {
-    const rows = await db
-      .select()
-      .from(products)
-      .orderBy(desc(products.updatedAt))
-      .limit(limit)
+    const rows = await db.select().from(products).orderBy(desc(products.updatedAt)).limit(limit)
     return rows.map(toProduct)
   },
 
@@ -102,23 +94,26 @@ export const productsRepository = {
 
   async upsertMany(items: Product[]): Promise<void> {
     if (items.length === 0) return
-    await db.insert(products).values(items).onConflictDoUpdate({
-      target: products.id,
-      set: {
-        name: sql`excluded.name`,
-        brand: sql`excluded.brand`,
-        kcalPer100g: sql`excluded.kcal_per_100g`,
-        protein: sql`excluded.protein`,
-        fat: sql`excluded.fat`,
-        carbs: sql`excluded.carbs`,
-        fiber: sql`excluded.fiber`,
-        sugar: sql`excluded.sugar`,
-        sodium: sql`excluded.sodium`,
-        barcode: sql`excluded.barcode`,
-        source: sql`excluded.source`,
-        updatedAt: sql`excluded.updated_at`,
-      },
-    })
+    await db
+      .insert(products)
+      .values(items)
+      .onConflictDoUpdate({
+        target: products.id,
+        set: {
+          name: sql`excluded.name`,
+          brand: sql`excluded.brand`,
+          kcalPer100g: sql`excluded.kcal_per_100g`,
+          protein: sql`excluded.protein`,
+          fat: sql`excluded.fat`,
+          carbs: sql`excluded.carbs`,
+          fiber: sql`excluded.fiber`,
+          sugar: sql`excluded.sugar`,
+          sodium: sql`excluded.sodium`,
+          barcode: sql`excluded.barcode`,
+          source: sql`excluded.source`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      })
   },
 }
 

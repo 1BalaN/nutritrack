@@ -33,7 +33,7 @@ function DatabaseProvider({ children }: { children: React.ReactNode }) {
   if (!success) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#1DB954" />
+        <ActivityIndicator size='large' color='#1DB954' />
       </View>
     )
   }

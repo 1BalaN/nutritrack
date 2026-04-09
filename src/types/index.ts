@@ -55,9 +55,7 @@ export type CreateMealEntryInput = {
   grams: number
 }
 
-export type UpdateMealEntryInput = Partial<
-  Pick<MealEntry, 'grams' | 'mealType' | 'date'>
->
+export type UpdateMealEntryInput = Partial<Pick<MealEntry, 'grams' | 'mealType' | 'date'>>
 
 export interface RecipeIngredient {
   id: string
@@ -86,9 +84,7 @@ export type CreateRecipeInput = {
   ingredients: Array<{ productId: string; grams: number }>
 }
 
-export type UpdateRecipeInput = Partial<
-  Pick<Recipe, 'name' | 'servings'>
-> & {
+export type UpdateRecipeInput = Partial<Pick<Recipe, 'name' | 'servings'>> & {
   ingredients?: Array<{ productId: string; grams: number }>
 }
 
@@ -107,9 +103,7 @@ export interface UserProfile {
   updatedAt: number
 }
 
-export type UpdateUserProfileInput = Partial<
-  Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>
->
+export type UpdateUserProfileInput = Partial<Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>>
 
 export interface NutritionSummary {
   kcal: number

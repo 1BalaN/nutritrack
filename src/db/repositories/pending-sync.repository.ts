@@ -20,17 +20,11 @@ function toPendingSync(row: PendingSyncRow): PendingSync {
 
 export const pendingSyncRepository = {
   async findAll(): Promise<PendingSync[]> {
-    const rows = await db
-      .select()
-      .from(pendingSync)
-      .orderBy(asc(pendingSync.createdAt))
+    const rows = await db.select().from(pendingSync).orderBy(asc(pendingSync.createdAt))
     return rows.map(toPendingSync)
   },
 
-  async findByEntity(
-    entityType: SyncEntityType,
-    entityId: string
-  ): Promise<PendingSync[]> {
+  async findByEntity(entityType: SyncEntityType, entityId: string): Promise<PendingSync[]> {
     const rows = await db
       .select()
       .from(pendingSync)
@@ -60,11 +54,7 @@ export const pendingSyncRepository = {
   },
 
   async incrementRetry(id: string): Promise<void> {
-    const rows = await db
-      .select()
-      .from(pendingSync)
-      .where(eq(pendingSync.id, id))
-      .limit(1)
+    const rows = await db.select().from(pendingSync).where(eq(pendingSync.id, id)).limit(1)
     if (!rows[0]) return
     await db
       .update(pendingSync)
@@ -79,12 +69,7 @@ export const pendingSyncRepository = {
   async deleteByEntity(entityType: SyncEntityType, entityId: string): Promise<void> {
     await db
       .delete(pendingSync)
-      .where(
-        and(
-          eq(pendingSync.entityType, entityType),
-          eq(pendingSync.entityId, entityId)
-        )
-      )
+      .where(and(eq(pendingSync.entityType, entityType), eq(pendingSync.entityId, entityId)))
   },
 
   async count(): Promise<number> {
