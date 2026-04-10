@@ -1,10 +1,21 @@
 import { useCallback, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Platform } from 'react-native'
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  RefreshControl,
+  Platform,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useNutritionStore } from '@/store/nutrition.store'
 import { useMealEntriesByDateQuery } from '@/hooks/useMealEntriesByDateQuery'
-import { useDeleteMealEntryMutation, useUpdateMealEntryMutation } from '@/hooks/useMealEntryMutations'
+import {
+  useDeleteMealEntryMutation,
+  useUpdateMealEntryMutation,
+} from '@/hooks/useMealEntryMutations'
 import { addCalendarDaysIso, calendarTodayIso } from '@/lib/date-calendar'
 import { useUndoLastMutation } from '@/hooks/useUndoLastMutation'
 import { useUserProfileQuery } from '@/hooks/useUserProfileQuery'
@@ -24,7 +35,8 @@ export default function DiaryScreen() {
   const setSelectedDate = useNutritionStore((s) => s.setSelectedDate)
   const canUndo = useNutritionStore((s) => s.undoStack.length > 0)
 
-  const { entriesByMeal, summary, isFetching, isPending, refetch } = useMealEntriesByDateQuery(selectedDate)
+  const { entriesByMeal, summary, isFetching, isPending, refetch } =
+    useMealEntriesByDateQuery(selectedDate)
   const deleteMutation = useDeleteMealEntryMutation()
   const updateMealEntryMutation = useUpdateMealEntryMutation()
   const { trigger: triggerUndo } = useUndoLastMutation()

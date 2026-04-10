@@ -3,8 +3,8 @@ import { fsBarcodeCacheKey, fsSearchCacheKey } from '@/lib/storage/keys'
 import type { CreateProductInput } from '@/types'
 import type { FatSecretOnlineResult } from '@/services/fatsecret.service'
 
-const BARCODE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
-const SEARCH_TTL_MS = 24 * 60 * 60 * 1000         // 24 hours
+const BARCODE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+const SEARCH_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 interface CacheEntry<T> {
   data: T

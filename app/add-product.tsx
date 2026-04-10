@@ -206,9 +206,11 @@ export default function AddProductScreen() {
     const newErrors: Partial<Record<keyof FormState, boolean>> = {}
     if (!form.name.trim()) newErrors.name = true
     if (!form.kcal.trim() || isNaN(parseFloat(form.kcal.replace(',', '.')))) newErrors.kcal = true
-    if (!form.protein.trim() || isNaN(parseFloat(form.protein.replace(',', '.')))) newErrors.protein = true
+    if (!form.protein.trim() || isNaN(parseFloat(form.protein.replace(',', '.'))))
+      newErrors.protein = true
     if (!form.fat.trim() || isNaN(parseFloat(form.fat.replace(',', '.')))) newErrors.fat = true
-    if (!form.carbs.trim() || isNaN(parseFloat(form.carbs.replace(',', '.')))) newErrors.carbs = true
+    if (!form.carbs.trim() || isNaN(parseFloat(form.carbs.replace(',', '.'))))
+      newErrors.carbs = true
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -327,7 +329,13 @@ export default function AddProductScreen() {
 
   if (loadState === 'missing') {
     return (
-      <View style={[styles.root, styles.centered, { paddingTop: insets.top, paddingHorizontal: Spacing.xl }]}>
+      <View
+        style={[
+          styles.root,
+          styles.centered,
+          { paddingTop: insets.top, paddingHorizontal: Spacing.xl },
+        ]}
+      >
         <Text style={styles.missingTitle}>Продукт не найден</Text>
         <Pressable style={styles.saveBtn} onPress={() => router.back()}>
           <Text style={styles.saveBtnText}>Закрыть</Text>
@@ -388,9 +396,7 @@ export default function AddProductScreen() {
               />
             </View>
           </View>
-          {errors.name ? (
-            <Text style={styles.errorText}>Введите название продукта</Text>
-          ) : null}
+          {errors.name ? <Text style={styles.errorText}>Введите название продукта</Text> : null}
         </View>
 
         <View style={styles.section}>
@@ -425,7 +431,9 @@ export default function AddProductScreen() {
           <View style={styles.barcodeHintBox}>
             <Text style={styles.barcodeHintLabel}>Штрихкод</Text>
             <Text style={styles.barcodeHintValue}>{barcodeHint}</Text>
-            <Text style={styles.barcodeHintCaption}>Чтобы изменить штрихкод, создайте новый продукт.</Text>
+            <Text style={styles.barcodeHintCaption}>
+              Чтобы изменить штрихкод, создайте новый продукт.
+            </Text>
           </View>
         ) : null}
 

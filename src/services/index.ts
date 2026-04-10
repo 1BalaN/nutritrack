@@ -2,5 +2,10 @@ export { syncService } from './sync.service'
 export { enqueueSync } from './sync-queue'
 export { lookupBarcode } from './open-food-facts.service'
 export type { OFFResult } from './open-food-facts.service'
-export { fsBarcodeToProduct, fsSearchOnline, fsFetchAndNormalize, fsNormalizeFood } from './fatsecret.service'
+export {
+  fsBarcodeToProduct,
+  fsSearchOnline,
+  fsFetchAndNormalize,
+  fsNormalizeFood,
+} from './fatsecret.service'
 export type { FatSecretOnlineResult } from './fatsecret.service'

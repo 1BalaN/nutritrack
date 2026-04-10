@@ -48,7 +48,8 @@ export function useCreateMealEntryMutation() {
     onMutate: async (input): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(input.date) })
       const previousEntries =
-        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ??
+        []
 
       const product = await productsRepository.findById(input.productId)
       if (product) {
@@ -73,7 +74,8 @@ export function useCreateMealEntryMutation() {
     onSuccess: async (created, input) => {
       const product = await productsRepository.findById(created.productId)
       const entries =
-        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ??
+        []
       const cleaned = entries.filter((e) => !e.id.startsWith('temp-'))
       const enriched: EnrichedMealEntry = {
         ...created,
@@ -122,7 +124,8 @@ export function useUpdateMealEntryMutation() {
     onMutate: async ({ entry, grams }): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
       const previousEntries =
-        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ??
+        []
       const factor = entry.grams > 0 ? grams / entry.grams : 1
       queryClient.setQueryData<EnrichedMealEntry[]>(
         queryKeys.mealEntries.byDate(entry.date),
@@ -168,7 +171,8 @@ export function useDeleteMealEntryMutation() {
     onMutate: async (entry): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
       const previousEntries =
-        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ??
+        []
       queryClient.setQueryData<EnrichedMealEntry[]>(
         queryKeys.mealEntries.byDate(entry.date),
         previousEntries.filter((e) => e.id !== entry.id)

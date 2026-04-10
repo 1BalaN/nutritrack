@@ -24,7 +24,6 @@ export const STORAGE_KEYS = {
 
 // Prefix-based keys (dynamic, not listed in STORAGE_KEYS)
 export const fsBarcodeCacheKey = (barcode: string) => `fatsecret:bc:${barcode}`
-export const fsSearchCacheKey = (query: string) =>
-  `fatsecret:search:${query.toLowerCase().trim()}`
+export const fsSearchCacheKey = (query: string) => `fatsecret:search:${query.toLowerCase().trim()}`
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

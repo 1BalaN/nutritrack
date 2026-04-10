@@ -96,8 +96,12 @@ function LocalProductRow({
           <Text style={[styles.macroChip, { color: Colors.protein }]}>
             Б{formatNutritionNumber(product.protein)}
           </Text>
-          <Text style={[styles.macroChip, { color: Colors.fat }]}>Ж{formatNutritionNumber(product.fat)}</Text>
-          <Text style={[styles.macroChip, { color: Colors.carbs }]}>У{formatNutritionNumber(product.carbs)}</Text>
+          <Text style={[styles.macroChip, { color: Colors.fat }]}>
+            Ж{formatNutritionNumber(product.fat)}
+          </Text>
+          <Text style={[styles.macroChip, { color: Colors.carbs }]}>
+            У{formatNutritionNumber(product.carbs)}
+          </Text>
         </View>
       </Pressable>
       <Pressable
@@ -145,14 +149,20 @@ function OnlineProductRow({
               </Text>
             ) : null}
             {macros.fat != null ? (
-              <Text style={[styles.onlineMacro, { color: Colors.fat }]}>Ж{formatNutritionNumber(macros.fat)}</Text>
+              <Text style={[styles.onlineMacro, { color: Colors.fat }]}>
+                Ж{formatNutritionNumber(macros.fat)}
+              </Text>
             ) : null}
             {macros.carbs != null ? (
-              <Text style={[styles.onlineMacro, { color: Colors.carbs }]}>У{formatNutritionNumber(macros.carbs)}</Text>
+              <Text style={[styles.onlineMacro, { color: Colors.carbs }]}>
+                У{formatNutritionNumber(macros.carbs)}
+              </Text>
             ) : null}
           </View>
         ) : (
-          <Text style={styles.onlineDesc} numberOfLines={1}>{result.description}</Text>
+          <Text style={styles.onlineDesc} numberOfLines={1}>
+            {result.description}
+          </Text>
         )}
       </View>
       <Pressable
@@ -245,7 +255,8 @@ export default function AddFoodScreen() {
 
         let product: Product | null = null
         if (input.barcode) product = await productsRepository.findByBarcode(input.barcode)
-        if (!product && input.fatsecretId) product = await productsRepository.findByFatsecretId(input.fatsecretId)
+        if (!product && input.fatsecretId)
+          product = await productsRepository.findByFatsecretId(input.fatsecretId)
         if (!product) product = await productsRepository.create(input)
 
         if (!cancelled) setSelected(product)
@@ -432,9 +443,7 @@ export default function AddFoodScreen() {
           <Text style={styles.headerSubtitle}>{MEAL_LABELS[mealType] ?? mealType}</Text>
         </View>
         <Pressable
-          onPress={() =>
-            router.push({ pathname: '/scanner', params: { mealType, date } })
-          }
+          onPress={() => router.push({ pathname: '/scanner', params: { mealType, date } })}
           style={styles.scanButton}
           hitSlop={8}
         >
@@ -474,7 +483,9 @@ export default function AddFoodScreen() {
           ) : (
             <>
               <Text style={styles.emptyTitle}>База продуктов пуста</Text>
-              <Text style={styles.emptySubtitle}>Отсканируйте штрихкод или добавьте продукт вручную</Text>
+              <Text style={styles.emptySubtitle}>
+                Отсканируйте штрихкод или добавьте продукт вручную
+              </Text>
             </>
           )}
           <Pressable onPress={() => router.push('/add-product')} style={styles.addNewProductBtn}>

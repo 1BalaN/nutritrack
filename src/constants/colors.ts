@@ -55,12 +55,13 @@ export const Colors = {
   overlay: 'rgba(0, 0, 0, 0.45)',
 }
 
-export const MealConfig: Record<string, { bg: string; tint: string; time: string; label: string }> = {
-  breakfast: { bg: Colors.breakfastBg, tint: Colors.breakfast, time: '07–10', label: 'Завтрак' },
-  lunch: { bg: Colors.lunchBg, tint: Colors.lunch, time: '12–14', label: 'Обед' },
-  dinner: { bg: Colors.dinnerBg, tint: Colors.dinner, time: '18–20', label: 'Ужин' },
-  snack: { bg: Colors.snackBg, tint: Colors.snack, time: 'перекус', label: 'Перекус' },
-}
+export const MealConfig: Record<string, { bg: string; tint: string; time: string; label: string }> =
+  {
+    breakfast: { bg: Colors.breakfastBg, tint: Colors.breakfast, time: '07–10', label: 'Завтрак' },
+    lunch: { bg: Colors.lunchBg, tint: Colors.lunch, time: '12–14', label: 'Обед' },
+    dinner: { bg: Colors.dinnerBg, tint: Colors.dinner, time: '18–20', label: 'Ужин' },
+    snack: { bg: Colors.snackBg, tint: Colors.snack, time: 'перекус', label: 'Перекус' },
+  }
 
 export const MacroColors = {
   calories: { color: Colors.calories, bg: Colors.caloriesLight, label: 'ккал' },

@@ -29,7 +29,10 @@ export interface Product {
   updatedAt: number
 }
 
-export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'fatsecretId' | 'cachedAt'> & {
+export type CreateProductInput = Omit<
+  Product,
+  'id' | 'createdAt' | 'updatedAt' | 'fatsecretId' | 'cachedAt'
+> & {
   fatsecretId?: string | null
   cachedAt?: number | null
 }

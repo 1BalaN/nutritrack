@@ -1,10 +1,7 @@
 import { productsRepository } from '@/db/repositories'
 import type { CreateProductInput } from '@/types'
 
-const SERVERS = [
-  'https://world.openfoodfacts.org',
-  'https://ru.openfoodfacts.org',
-]
+const SERVERS = ['https://world.openfoodfacts.org', 'https://ru.openfoodfacts.org']
 
 const FIELDS =
   'product_name,product_name_ru,brands,nutriments,serving_size,quantity,categories_tags'
@@ -44,18 +41,16 @@ export interface OFFResult {
   product?: CreateProductInput & { barcode: string }
 }
 
-function parseProduct(barcode: string, p: OFFProductData): (CreateProductInput & { barcode: string }) | null {
+function parseProduct(
+  barcode: string,
+  p: OFFProductData
+): (CreateProductInput & { barcode: string }) | null {
   const n = p.nutriments ?? {}
-  const kcal =
-    n['energy-kcal_100g'] ??
-    (n['energy-kcal'] ? n['energy-kcal'] : undefined)
+  const kcal = n['energy-kcal_100g'] ?? (n['energy-kcal'] ? n['energy-kcal'] : undefined)
 
   if (kcal === undefined && !p.product_name && !p.product_name_ru) return null
 
-  const name =
-    p.product_name_ru?.trim() ||
-    p.product_name?.trim() ||
-    `Продукт ${barcode.slice(-4)}`
+  const name = p.product_name_ru?.trim() || p.product_name?.trim() || `Продукт ${barcode.slice(-4)}`
 
   return {
     name,

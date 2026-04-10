@@ -204,10 +204,7 @@ export const mealEntriesRepository = {
   },
 
   async countByProductId(productId: string): Promise<number> {
-    const rows = await db
-      .select()
-      .from(mealEntries)
-      .where(eq(mealEntries.productId, productId))
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
     return rows.length
   },
 
@@ -224,11 +221,7 @@ export const mealEntriesRepository = {
 
   /** After product macros change: recompute kcal/BЖУ for every entry using this product. */
   async recalculateNutritionForProductId(productId: string): Promise<string[]> {
-    const [productRow] = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, productId))
-      .limit(1)
+    const [productRow] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
     if (!productRow) return []
 
     const entries = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))

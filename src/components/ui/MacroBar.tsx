@@ -75,7 +75,12 @@ export function MacroBar({
       </View>
 
       <View style={styles.macrosRow}>
-        <MacroCol label='Белки' value={protein} goal={proteinGoal} color={MacroColors.protein.color} />
+        <MacroCol
+          label='Белки'
+          value={protein}
+          goal={proteinGoal}
+          color={MacroColors.protein.color}
+        />
         <View style={styles.divider} />
         <MacroCol label='Жиры' value={fat} goal={fatGoal} color={MacroColors.fat.color} />
         <View style={styles.divider} />

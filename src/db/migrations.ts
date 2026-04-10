@@ -20,7 +20,9 @@ export function useDatabaseMigrations() {
           sqlite.getAllSync("PRAGMA table_info('products')") as Array<{
             name?: string
           }>
-        ).map((row) => row.name).filter(Boolean)
+        )
+          .map((row) => row.name)
+          .filter(Boolean)
       )
 
       try {

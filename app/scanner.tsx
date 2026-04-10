@@ -28,8 +28,16 @@ interface ScanResult {
  * 3. FatSecret API (BY/RU locale)
  * 4. Not found → manual add
  */
-async function resolveBarcode(barcode: string): Promise<
-  | { found: true; source: ScanSource; productId?: string; productInput?: CreateProductInput; name: string }
+async function resolveBarcode(
+  barcode: string
+): Promise<
+  | {
+      found: true
+      source: ScanSource
+      productId?: string
+      productInput?: CreateProductInput
+      name: string
+    }
   | { found: false }
 > {
   // 1. Local DB
@@ -196,7 +204,9 @@ export default function ScannerScreen() {
       <CameraView
         style={StyleSheet.absoluteFill}
         facing='back'
-        onBarcodeScanned={scanState === 'scanning' || scanState === 'found' ? undefined : handleBarcodeScanned}
+        onBarcodeScanned={
+          scanState === 'scanning' || scanState === 'found' ? undefined : handleBarcodeScanned
+        }
         barcodeScannerSettings={{
           barcodeTypes: ['ean13', 'ean8', 'qr', 'upc_a', 'upc_e', 'code128', 'code39'],
         }}
@@ -281,8 +291,10 @@ export default function ScannerScreen() {
 
 function sourceLabel(source: ScanSource): string {
   switch (source) {
-    case 'local': return 'Локальная база'
-    case 'fatsecret': return 'FatSecret'
+    case 'local':
+      return 'Локальная база'
+    case 'fatsecret':
+      return 'FatSecret'
   }
 }
 
@@ -362,25 +374,29 @@ const styles = StyleSheet.create({
     borderColor: Colors.white,
   },
   cornerTL: {
-    top: 0, left: 0,
+    top: 0,
+    left: 0,
     borderTopWidth: CORNER_THICKNESS,
     borderLeftWidth: CORNER_THICKNESS,
     borderTopLeftRadius: 4,
   },
   cornerTR: {
-    top: 0, right: 0,
+    top: 0,
+    right: 0,
     borderTopWidth: CORNER_THICKNESS,
     borderRightWidth: CORNER_THICKNESS,
     borderTopRightRadius: 4,
   },
   cornerBL: {
-    bottom: 0, left: 0,
+    bottom: 0,
+    left: 0,
     borderBottomWidth: CORNER_THICKNESS,
     borderLeftWidth: CORNER_THICKNESS,
     borderBottomLeftRadius: 4,
   },
   cornerBR: {
-    bottom: 0, right: 0,
+    bottom: 0,
+    right: 0,
     borderBottomWidth: CORNER_THICKNESS,
     borderRightWidth: CORNER_THICKNESS,
     borderBottomRightRadius: 4,
