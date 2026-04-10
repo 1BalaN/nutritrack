@@ -28,9 +28,7 @@ interface ScanResult {
  * 3. FatSecret API (BY/RU locale)
  * 4. Not found → manual add
  */
-async function resolveBarcode(
-  barcode: string
-): Promise<
+async function resolveBarcode(barcode: string): Promise<
   | {
       found: true
       source: ScanSource
