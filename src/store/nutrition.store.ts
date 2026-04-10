@@ -1,29 +1,63 @@
 import { create } from 'zustand'
-import type { MealEntry, NutritionSummary } from '@/types'
+import type { NutritionSummary } from '@/types'
+import { appStorage } from '@/lib/storage'
+
+export interface UndoAction {
+  id: string
+  label: string
+  run: () => Promise<void>
+}
 
 interface NutritionState {
   selectedDate: string
-  pendingChanges: MealEntry[]
+  mealTypeFilter: 'all' | 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  undoStack: UndoAction[]
 
   setSelectedDate: (date: string) => void
-  addPendingChange: (entry: MealEntry) => void
-  clearPendingChanges: () => void
+  setMealTypeFilter: (filter: NutritionState['mealTypeFilter']) => void
+  pushUndoAction: (action: UndoAction) => void
+  popUndoAction: () => UndoAction | null
+  clearUndoStack: () => void
 }
 
 const getTodayDate = () => new Date().toISOString().split('T')[0]
+const defaultDate = appStorage.getSelectedDate() ?? getTodayDate()
 
-export const useNutritionStore = create<NutritionState>((set) => ({
-  selectedDate: getTodayDate(),
-  pendingChanges: [],
+export const useNutritionStore = create<NutritionState>((set, get) => ({
+  selectedDate: defaultDate,
+  mealTypeFilter: 'all',
+  undoStack: [],
 
-  setSelectedDate: (date) => set({ selectedDate: date }),
+  setSelectedDate: (date) => {
+    appStorage.setSelectedDate(date)
+    set({ selectedDate: date })
+  },
 
-  addPendingChange: (entry) => set((prev) => ({ pendingChanges: [...prev.pendingChanges, entry] })),
+  setMealTypeFilter: (filter) => set({ mealTypeFilter: filter }),
 
-  clearPendingChanges: () => set({ pendingChanges: [] }),
+  pushUndoAction: (action) =>
+    set((prev) => ({
+      undoStack: [action, ...prev.undoStack].slice(0, 20),
+    })),
+
+  popUndoAction: () => {
+    const [latest, ...rest] = get().undoStack
+    set({ undoStack: rest })
+    return latest ?? null
+  },
+
+  clearUndoStack: () => set({ undoStack: [] }),
 }))
 
-export function calcNutrition(entries: MealEntry[]): NutritionSummary {
+export const nutritionSelectors = {
+  selectedDate: (s: NutritionState) => s.selectedDate,
+  mealTypeFilter: (s: NutritionState) => s.mealTypeFilter,
+  canUndo: (s: NutritionState) => s.undoStack.length > 0,
+}
+
+export function calcNutrition(
+  entries: Array<Pick<NutritionSummary, 'kcal' | 'protein' | 'fat' | 'carbs'>>
+) {
   return entries.reduce(
     (acc, entry) => ({
       kcal: acc.kcal + entry.kcal,
