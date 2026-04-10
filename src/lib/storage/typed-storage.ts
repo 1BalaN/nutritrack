@@ -1,6 +1,52 @@
-import { createMMKV } from 'react-native-mmkv'
+type StorageAdapter = {
+  getString: (key: string) => string | undefined
+  getBoolean: (key: string) => boolean | undefined
+  getNumber: (key: string) => number | undefined
+  set: (key: string, value: boolean | string | number) => void
+  remove: (key: string) => void
+  clearAll: () => void
+}
 
-const mmkv = createMMKV({ id: 'nutritrack-storage' })
+function createMemoryAdapter(): StorageAdapter {
+  const memory = new Map<string, string>()
+
+  return {
+    getString: (key) => memory.get(key),
+    getBoolean: (key) => {
+      const value = memory.get(key)
+      if (value === undefined) return undefined
+      return value === 'true'
+    },
+    getNumber: (key) => {
+      const value = memory.get(key)
+      if (value === undefined) return undefined
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : undefined
+    },
+    set: (key, value) => memory.set(key, String(value)),
+    remove: (key) => {
+      memory.delete(key)
+    },
+    clearAll: () => {
+      memory.clear()
+    },
+  }
+}
+
+function createStorageAdapter(): StorageAdapter {
+  try {
+    // Lazy require prevents crash in Expo Go when Nitro modules are unavailable.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createMMKV } = require('react-native-mmkv') as {
+      createMMKV: (config: { id: string }) => StorageAdapter
+    }
+    return createMMKV({ id: 'nutritrack-storage' })
+  } catch {
+    return createMemoryAdapter()
+  }
+}
+
+const mmkv = createStorageAdapter()
 
 function getJson<T>(key: string, fallback: T): T {
   try {

@@ -1,23 +1,10 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { View, Text, ActivityIndicator } from 'react-native'
 import { useDatabaseMigrations } from '@/db/migrations'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-})
+import { queryClient } from '@/query/query-client'
 
 function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const { success, error } = useDatabaseMigrations()
