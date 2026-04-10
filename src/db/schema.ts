@@ -11,12 +11,14 @@ export const products = sqliteTable(
     fat: real('fat').notNull(),
     carbs: real('carbs').notNull(),
     barcode: text('barcode').unique(),
-    source: text('source', { enum: ['local', 'open_food_facts', 'manual'] })
+    source: text('source', { enum: ['local', 'open_food_facts', 'fatsecret', 'manual'] })
       .notNull()
       .default('manual'),
     fiber: real('fiber'),
     sugar: real('sugar'),
     sodium: real('sodium'),
+    fatsecretId: text('fatsecret_id'),
+    cachedAt: integer('cached_at'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

@@ -23,11 +23,13 @@ describe('calcNutritionFromGrams', () => {
     expect(result.protein).toBe(0)
   })
 
-  it('rounds to 1 decimal place', () => {
+  it('keeps full precision from per-100g values and grams', () => {
     const p = { kcalPer100g: 100, protein: 10, fat: 3.33, carbs: 5.55 }
     const result = calcNutritionFromGrams(p, 150)
-    expect(result.fat).toBe(5)
-    expect(result.carbs).toBe(8.3)
+    expect(result.kcal).toBe(150)
+    expect(result.protein).toBe(15)
+    expect(result.fat).toBeCloseTo(4.995, 10)
+    expect(result.carbs).toBeCloseTo(8.325, 10)
   })
 })
 

@@ -2,7 +2,7 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
-export type ProductSource = 'local' | 'open_food_facts' | 'manual'
+export type ProductSource = 'local' | 'open_food_facts' | 'fatsecret' | 'manual'
 
 export type Sex = 'male' | 'female'
 
@@ -23,11 +23,19 @@ export interface Product {
   sodium: number | null
   barcode: string | null
   source: ProductSource
+  fatsecretId: string | null
+  cachedAt: number | null
   createdAt: number
   updatedAt: number
 }
 
-export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
+export type CreateProductInput = Omit<
+  Product,
+  'id' | 'createdAt' | 'updatedAt' | 'fatsecretId' | 'cachedAt'
+> & {
+  fatsecretId?: string | null
+  cachedAt?: number | null
+}
 
 export type UpdateProductInput = Partial<CreateProductInput>
 
@@ -116,6 +124,11 @@ export interface DayScore {
   score: number
   kcalAdherence: number
   proteinAdherence: number
+}
+
+export interface EnrichedMealEntry extends MealEntry {
+  productName: string | null
+  brand: string | null
 }
 
 export interface PendingSync {

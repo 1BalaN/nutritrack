@@ -1,6 +1,7 @@
 import { between, eq, desc, inArray, isNull } from 'drizzle-orm'
 import { db } from '../client'
 import { mealEntries, products } from '../schema'
+import type { EnrichedMealEntry } from '@/types'
 import { generateId, now } from '../utils'
 import { calcNutritionFromGrams } from '@/lib/nutrition'
 import type {
@@ -38,6 +39,36 @@ export const mealEntriesRepository = {
       .where(eq(mealEntries.date, date))
       .orderBy(mealEntries.mealType, mealEntries.createdAt)
     return rows.map(toMealEntry)
+  },
+
+  async findByDateEnriched(date: string): Promise<EnrichedMealEntry[]> {
+    const rows = await db
+      .select({
+        id: mealEntries.id,
+        date: mealEntries.date,
+        mealType: mealEntries.mealType,
+        productId: mealEntries.productId,
+        recipeId: mealEntries.recipeId,
+        grams: mealEntries.grams,
+        kcal: mealEntries.kcal,
+        protein: mealEntries.protein,
+        fat: mealEntries.fat,
+        carbs: mealEntries.carbs,
+        syncedAt: mealEntries.syncedAt,
+        createdAt: mealEntries.createdAt,
+        updatedAt: mealEntries.updatedAt,
+        productName: products.name,
+        brand: products.brand,
+      })
+      .from(mealEntries)
+      .leftJoin(products, eq(mealEntries.productId, products.id))
+      .where(eq(mealEntries.date, date))
+      .orderBy(mealEntries.mealType, mealEntries.createdAt)
+    return rows.map((row) => ({
+      ...toMealEntry(row),
+      productName: row.productName ?? null,
+      brand: row.brand ?? null,
+    }))
   },
 
   async findByDateRange(from: string, to: string): Promise<MealEntry[]> {
@@ -170,5 +201,49 @@ export const mealEntriesRepository = {
 
   async deleteByDate(date: string): Promise<void> {
     await db.delete(mealEntries).where(eq(mealEntries.date, date))
+  },
+
+  async countByProductId(productId: string): Promise<number> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    return rows.length
+  },
+
+  /** Remove all diary rows that use this product (before deleting the product). Returns affected dates for cache refresh. */
+  async deleteByProductId(productId: string): Promise<string[]> {
+    const rows = await db
+      .select({ date: mealEntries.date })
+      .from(mealEntries)
+      .where(eq(mealEntries.productId, productId))
+    const dates = [...new Set(rows.map((r) => r.date))]
+    await db.delete(mealEntries).where(eq(mealEntries.productId, productId))
+    return dates
+  },
+
+  /** After product macros change: recompute kcal/BЖУ for every entry using this product. */
+  async recalculateNutritionForProductId(productId: string): Promise<string[]> {
+    const [productRow] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
+    if (!productRow) return []
+
+    const entries = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    if (entries.length === 0) return []
+
+    const ts = now()
+    const dates = new Set<string>()
+    for (const e of entries) {
+      const n = calcNutritionFromGrams(productRow, e.grams)
+      await db
+        .update(mealEntries)
+        .set({
+          kcal: n.kcal,
+          protein: n.protein,
+          fat: n.fat,
+          carbs: n.carbs,
+          syncedAt: null,
+          updatedAt: ts,
+        })
+        .where(eq(mealEntries.id, e.id))
+      dates.add(e.date)
+    }
+    return [...dates]
   },
 }

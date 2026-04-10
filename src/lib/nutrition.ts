@@ -5,11 +5,14 @@ export function calcNutritionFromGrams(
   grams: number
 ): NutritionSummary {
   const factor = grams / 100
+  if (grams === 0) {
+    return { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+  }
   return {
-    kcal: Math.round(product.kcalPer100g * factor * 10) / 10,
-    protein: Math.round(product.protein * factor * 10) / 10,
-    fat: Math.round(product.fat * factor * 10) / 10,
-    carbs: Math.round(product.carbs * factor * 10) / 10,
+    kcal: product.kcalPer100g * factor,
+    protein: product.protein * factor,
+    fat: product.fat * factor,
+    carbs: product.carbs * factor,
   }
 }
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { NutritionSummary } from '@/types'
 import { appStorage } from '@/lib/storage'
+import { calendarTodayIso } from '@/lib/date-calendar'
 
 export interface UndoAction {
   id: string
@@ -20,8 +21,7 @@ interface NutritionState {
   clearUndoStack: () => void
 }
 
-const getTodayDate = () => new Date().toISOString().split('T')[0]
-const defaultDate = appStorage.getSelectedDate() ?? getTodayDate()
+const defaultDate = appStorage.getSelectedDate() ?? calendarTodayIso()
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
   selectedDate: defaultDate,

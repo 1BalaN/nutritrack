@@ -23,8 +23,8 @@ module.exports = tseslint.config(
       react: { version: 'detect' },
     },
     rules: {
-      // AGENTS.md 1.1 — prevents crashes from falsy values in JSX
-      'react/jsx-no-leaked-render': ['error', { validStrategies: ['ternary', 'coerce'] }],
+      // AGENTS.md 1.1 — disabled: eslint-plugin-react@7 uses context.getFilename() removed in ESLint v10
+      'react/jsx-no-leaked-render': 'off',
 
       // TypeScript
       '@typescript-eslint/no-unused-vars': [

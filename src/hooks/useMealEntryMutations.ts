@@ -4,17 +4,18 @@ import { enqueueSync } from '@/services'
 import { queryKeys } from '@/query/query-keys'
 import { calcNutritionFromGrams } from '@/lib/nutrition'
 import { useNutritionStore } from '@/store/nutrition.store'
-import type { CreateMealEntryInput, MealEntry } from '@/types'
+import type { CreateMealEntryInput, EnrichedMealEntry, MealEntry, Product } from '@/types'
 
 type MutationContext = {
-  previousEntries?: MealEntry[]
+  previousEntries?: EnrichedMealEntry[]
   previousDate?: string
 }
 
 function makeTempMealEntry(
   input: CreateMealEntryInput,
+  product: Product,
   nutrition: ReturnType<typeof calcNutritionFromGrams>
-): MealEntry {
+): EnrichedMealEntry {
   const ts = Date.now()
   return {
     id: `temp-${ts}`,
@@ -30,6 +31,8 @@ function makeTempMealEntry(
     syncedAt: null,
     createdAt: ts,
     updatedAt: ts,
+    productName: product.name,
+    brand: product.brand,
   }
 }
 
@@ -45,13 +48,14 @@ export function useCreateMealEntryMutation() {
     onMutate: async (input): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(input.date) })
       const previousEntries =
-        queryClient.getQueryData<MealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ??
+        []
 
       const product = await productsRepository.findById(input.productId)
       if (product) {
         const nutrition = calcNutritionFromGrams(product, input.grams)
-        const optimistic = makeTempMealEntry(input, nutrition)
-        queryClient.setQueryData<MealEntry[]>(queryKeys.mealEntries.byDate(input.date), [
+        const optimistic = makeTempMealEntry(input, product, nutrition)
+        queryClient.setQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date), [
           optimistic,
           ...previousEntries,
         ])
@@ -67,12 +71,19 @@ export function useCreateMealEntryMutation() {
         )
       }
     },
-    onSuccess: (created, input) => {
+    onSuccess: async (created, input) => {
+      const product = await productsRepository.findById(created.productId)
       const entries =
-        queryClient.getQueryData<MealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ?? []
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ??
+        []
       const cleaned = entries.filter((e) => !e.id.startsWith('temp-'))
-      queryClient.setQueryData<MealEntry[]>(queryKeys.mealEntries.byDate(input.date), [
-        created,
+      const enriched: EnrichedMealEntry = {
+        ...created,
+        productName: product?.name ?? null,
+        brand: product?.brand ?? null,
+      }
+      queryClient.setQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date), [
+        enriched,
         ...cleaned,
       ])
 
@@ -98,6 +109,56 @@ export function useCreateMealEntryMutation() {
   })
 }
 
+type UpdateMealGramsVars = { entry: EnrichedMealEntry; grams: number }
+
+export function useUpdateMealEntryMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ entry, grams }: UpdateMealGramsVars) => {
+      const updated = await mealEntriesRepository.update(entry.id, { grams })
+      if (!updated) throw new Error('Запись не найдена')
+      await enqueueSync('meal_entry', entry.id, 'update', updated)
+      return updated
+    },
+    onMutate: async ({ entry, grams }): Promise<MutationContext> => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
+      const previousEntries =
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ??
+        []
+      const factor = entry.grams > 0 ? grams / entry.grams : 1
+      queryClient.setQueryData<EnrichedMealEntry[]>(
+        queryKeys.mealEntries.byDate(entry.date),
+        previousEntries.map((e) =>
+          e.id === entry.id
+            ? {
+                ...e,
+                grams,
+                kcal: e.kcal * factor,
+                protein: e.protein * factor,
+                fat: e.fat * factor,
+                carbs: e.carbs * factor,
+              }
+            : e
+        )
+      )
+      return { previousEntries, previousDate: entry.date }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousEntries && context.previousDate) {
+        queryClient.setQueryData(
+          queryKeys.mealEntries.byDate(context.previousDate),
+          context.previousEntries
+        )
+      }
+    },
+    onSettled: (_data, _error, { entry }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.summaryByDate(entry.date) })
+    },
+  })
+}
+
 export function useDeleteMealEntryMutation() {
   const queryClient = useQueryClient()
 
@@ -110,8 +171,9 @@ export function useDeleteMealEntryMutation() {
     onMutate: async (entry): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
       const previousEntries =
-        queryClient.getQueryData<MealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ?? []
-      queryClient.setQueryData<MealEntry[]>(
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(entry.date)) ??
+        []
+      queryClient.setQueryData<EnrichedMealEntry[]>(
         queryKeys.mealEntries.byDate(entry.date),
         previousEntries.filter((e) => e.id !== entry.id)
       )

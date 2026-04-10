@@ -64,10 +64,10 @@ async function calcTotalsForIngredients(ingredients: Array<{ productId: string; 
   }
 
   return {
-    totalKcal: Math.round(totalKcal * 10) / 10,
-    totalProtein: Math.round(totalProtein * 10) / 10,
-    totalFat: Math.round(totalFat * 10) / 10,
-    totalCarbs: Math.round(totalCarbs * 10) / 10,
+    totalKcal,
+    totalProtein,
+    totalFat,
+    totalCarbs,
   }
 }
 

@@ -15,6 +15,15 @@ export const STORAGE_KEYS = {
   // Sync
   LAST_SYNCED_AT: 'last_synced_at',
   SYNC_ENABLED: 'sync_enabled',
+
+  // FatSecret API
+  FATSECRET_TOKEN: 'fatsecret:token',
+  FATSECRET_DAILY_COUNT: 'fatsecret:daily_count',
+  FATSECRET_DAILY_DATE: 'fatsecret:daily_date',
 } as const
+
+// Prefix-based keys (dynamic, not listed in STORAGE_KEYS)
+export const fsBarcodeCacheKey = (barcode: string) => `fatsecret:bc:${barcode}`
+export const fsSearchCacheKey = (query: string) => `fatsecret:search:${query.toLowerCase().trim()}`
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]
