@@ -2,7 +2,7 @@ import { openDatabaseSync } from 'expo-sqlite'
 import { drizzle } from 'drizzle-orm/expo-sqlite'
 import * as schema from './schema'
 
-const sqlite = openDatabaseSync('nutritrack.db', { enableChangeListener: true })
+export const sqlite = openDatabaseSync('nutritrack.db', { enableChangeListener: true })
 
 export const db = drizzle(sqlite, { schema })
 

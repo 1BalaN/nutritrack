@@ -128,10 +128,14 @@ ALTER TABLE \`user_profile\` ADD \`protein_goal\` real;--> statement-breakpoint
 ALTER TABLE \`user_profile\` ADD \`fat_goal\` real;--> statement-breakpoint
 ALTER TABLE \`user_profile\` ADD \`carbs_goal\` real;`
 
+const m0002 = `ALTER TABLE \`products\` ADD \`fatsecret_id\` text;--> statement-breakpoint
+ALTER TABLE \`products\` ADD \`cached_at\` integer;`
+
 export default {
   journal,
   migrations: {
     m0000,
     m0001,
+    m0002,
   },
 }

@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useNutritionStore } from '@/store/nutrition.store'
 
 export function useUndoLastMutation() {
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async () => {
       const action = useNutritionStore.getState().popUndoAction()
       if (!action) return null
@@ -10,4 +10,5 @@ export function useUndoLastMutation() {
       return action
     },
   })
+  return { ...mutation, trigger: mutation.mutate }
 }
