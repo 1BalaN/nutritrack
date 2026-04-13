@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { mealEntriesRepository, productsRepository } from '@/db/repositories'
+import { mealEntriesRepository, productsRepository, recipesRepository } from '@/db/repositories'
 import { enqueueSync } from '@/services'
 import { queryKeys } from '@/query/query-keys'
 import { calcNutritionFromGrams } from '@/lib/nutrition'
@@ -209,6 +209,80 @@ export function useDeleteMealEntryMutation() {
     onSettled: (_data, _error, entry) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(entry.date) })
       queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.summaryByDate(entry.date) })
+    },
+  })
+}
+
+type CreateRecipeMealEntryInput = {
+  date: string
+  mealType: MealEntry['mealType']
+  recipeId: string
+  grams: number
+}
+
+export function useCreateRecipeMealEntryMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: CreateRecipeMealEntryInput) => {
+      const created = await mealEntriesRepository.createFromRecipe(input)
+      await enqueueSync('meal_entry', created.id, 'create', created)
+      return created
+    },
+    onSuccess: async (_created, input) => {
+      // Invalidate to resolve proper enriched recipe label from DB joins.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(input.date) })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.mealEntries.summaryByDate(input.date),
+      })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.recipes.all })
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.mealEntries.byDate(input.date) })
+      const previousEntries =
+        queryClient.getQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date)) ??
+        []
+
+      const recipe = await recipesRepository.findById(input.recipeId)
+      if (recipe) {
+        const baseGrams = recipe.ingredients.reduce((sum, ing) => sum + ing.grams, 0) || 1
+        const factor = input.grams / baseGrams
+        const ts = Date.now()
+        queryClient.setQueryData<EnrichedMealEntry[]>(queryKeys.mealEntries.byDate(input.date), [
+          {
+            id: `temp-recipe-${ts}`,
+            date: input.date,
+            mealType: input.mealType,
+            productId: recipe.ingredients[0]?.productId ?? 'temp',
+            recipeId: recipe.id,
+            grams: input.grams,
+            kcal: recipe.totalKcal * factor,
+            protein: recipe.totalProtein * factor,
+            fat: recipe.totalFat * factor,
+            carbs: recipe.totalCarbs * factor,
+            syncedAt: null,
+            createdAt: ts,
+            updatedAt: ts,
+            productName: recipe.name,
+            brand: null,
+          },
+          ...previousEntries,
+        ])
+      }
+
+      return { previousEntries, previousDate: input.date }
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousEntries && context.previousDate) {
+        queryClient.setQueryData(
+          queryKeys.mealEntries.byDate(context.previousDate),
+          context.previousEntries
+        )
+      }
+    },
+    onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(input.date) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.mealEntries.summaryByDate(input.date) })
     },
   })
 }

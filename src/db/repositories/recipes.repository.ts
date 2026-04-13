@@ -40,6 +40,10 @@ async function loadRecipeWithIngredients(recipeRow: RecipeRow): Promise<Recipe> 
 }
 
 async function calcTotalsForIngredients(ingredients: Array<{ productId: string; grams: number }>) {
+  if (ingredients.length === 0) {
+    throw new Error('Recipe must have at least one ingredient')
+  }
+
   let totalKcal = 0
   let totalProtein = 0
   let totalFat = 0
@@ -84,14 +88,16 @@ export const recipesRepository = {
   },
 
   async create(input: CreateRecipeInput): Promise<Recipe> {
+    if (!input.name.trim()) throw new Error('Recipe name is required')
+    if (!input.ingredients.length) throw new Error('Recipe must have ingredients')
     const id = generateId()
     const ts = now()
     const totals = await calcTotalsForIngredients(input.ingredients)
 
     await db.insert(recipes).values({
       id,
-      name: input.name,
-      servings: input.servings ?? 1,
+      name: input.name.trim(),
+      servings: Math.max(1, input.servings ?? 1),
       totalKcal: totals.totalKcal,
       totalProtein: totals.totalProtein,
       totalFat: totals.totalFat,
@@ -133,7 +139,7 @@ export const recipesRepository = {
         .update(recipes)
         .set({
           name: input.name ?? existing.name,
-          servings: input.servings ?? existing.servings,
+          servings: Math.max(1, input.servings ?? existing.servings),
           totalKcal: totals.totalKcal,
           totalProtein: totals.totalProtein,
           totalFat: totals.totalFat,
@@ -158,7 +164,7 @@ export const recipesRepository = {
         .update(recipes)
         .set({
           name: input.name ?? existing.name,
-          servings: input.servings ?? existing.servings,
+          servings: Math.max(1, input.servings ?? existing.servings),
           syncedAt: null,
           updatedAt: ts,
         })

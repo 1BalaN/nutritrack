@@ -9,4 +9,9 @@ export const queryKeys = {
     byDate: (date: string) => ['meal-entries', 'by-date', date] as const,
     summaryByDate: (date: string) => ['meal-entries', 'summary-by-date', date] as const,
   },
+  recipes: {
+    all: ['recipes'] as const,
+    list: (search: string) => ['recipes', 'list', search] as const,
+    byId: (id: string) => ['recipes', 'by-id', id] as const,
+  },
 } as const

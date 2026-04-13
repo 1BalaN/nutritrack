@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type RelativePathString } from 'expo-router'
 import { useNutritionStore } from '@/store/nutrition.store'
 import { useMealEntriesByDateQuery } from '@/hooks/useMealEntriesByDateQuery'
 import {
@@ -96,12 +96,12 @@ export default function DiaryScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Дневник</Text>
         <Pressable
-          onPress={() => router.push('/add-product')}
+          onPress={() => router.push('/add-recipe' as RelativePathString)}
           style={({ pressed }) => [styles.addProductBtn, pressed && styles.addProductBtnPressed]}
           accessibilityRole='button'
-          accessibilityLabel='Добавить свой продукт в каталог'
+          accessibilityLabel='Добавить рецепт'
         >
-          <Text style={styles.addProductBtnText}>+ Свой продукт</Text>
+          <Text style={styles.addProductBtnText}>+ Добавить рецепт</Text>
         </Pressable>
       </View>
 

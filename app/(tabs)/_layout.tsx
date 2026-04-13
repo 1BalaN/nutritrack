@@ -12,16 +12,19 @@ const IOS_TAB_BAR_PROPS =
       } as const)
     : {}
 
+const isIOS = Platform.OS === 'ios'
+
 export default function TabsLayout() {
   return (
     <NativeTabs
-      tintColor={Colors.primary}
+      // iOS: avoid green "capsule" + white icon combo; keep selected icon/label green.
+      tintColor={isIOS ? undefined : Colors.primary}
       backgroundColor={Colors.surface}
       labelStyle={{
         default: { fontSize: 10, fontWeight: '600', color: Colors.textTertiary },
         selected: { fontSize: 10, fontWeight: '600', color: Colors.primary },
       }}
-      iconColor={{ default: Colors.textTertiary, selected: Colors.textOnPrimary }}
+      iconColor={{ default: Colors.textTertiary, selected: isIOS ? Colors.primary : Colors.white }}
       indicatorColor={Colors.primary}
       {...IOS_TAB_BAR_PROPS}
     >
