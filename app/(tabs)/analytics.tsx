@@ -1,13 +1,14 @@
-import { useMemo } from 'react'
-import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native'
+import { useState } from 'react'
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useQuery } from '@tanstack/react-query'
-import { mealEntriesRepository } from '@/db/repositories'
 import { useUserProfileQuery } from '@/hooks/useUserProfileQuery'
+import { useAnalyticsData } from '@/hooks/useAnalyticsData'
+import { PERIOD_OPTIONS, type PeriodDays } from '@/lib/analytics'
 import { Colors, Spacing, Radius, Typography, MacroColors } from '@/constants'
 import { formatNutritionNumber } from '@/lib/format-nutrition'
+import type { DayAnalytics } from '@/lib/analytics'
 
-function WeekBar({
+function DayBar({
   day,
   calories,
   goal,
@@ -51,57 +52,36 @@ const barStyles = StyleSheet.create({
   dayLabelToday: { color: Colors.primary, fontWeight: '700' },
 })
 
-const DAYS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets()
   const { data: profile } = useUserProfileQuery()
+  const [periodDays, setPeriodDays] = useState<PeriodDays>(7)
 
-  const today = new Date()
-  const todayIso = today.toISOString().slice(0, 10)
-  const weekDates = useMemo(() => {
-    const base = new Date(todayIso + 'T00:00:00')
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(base)
-      d.setDate(d.getDate() - (6 - i))
-      return d.toISOString().slice(0, 10)
-    })
-  }, [todayIso])
-
-  const fromDate = weekDates[0]
-  const toDate = weekDates[6]
-
-  const { data: entries } = useQuery({
-    queryKey: ['mealEntries', 'range', fromDate, toDate],
-    queryFn: () => mealEntriesRepository.findByDateRange(fromDate, toDate),
-  })
-
-  const weekData = useMemo(() => {
-    return weekDates.map((date) => {
-      const dayEntries = (entries ?? []).filter((e) => e.date === date)
-      const kcal = dayEntries.reduce((s, e) => s + e.kcal, 0)
-      const protein = dayEntries.reduce((s, e) => s + e.protein, 0)
-      const fat = dayEntries.reduce((s, e) => s + e.fat, 0)
-      const carbs = dayEntries.reduce((s, e) => s + e.carbs, 0)
-      const d = new Date(date + 'T00:00:00')
-      return { date, kcal, protein, fat, carbs, dayName: DAYS_RU[d.getDay()] }
-    })
-  }, [entries, weekDates])
-
-  const avgKcal =
-    weekData.length > 0
-      ? weekData.filter((d) => d.kcal > 0).reduce((s, d) => s + d.kcal, 0) /
-        Math.max(weekData.filter((d) => d.kcal > 0).length, 1)
-      : 0
-
-  const goal = profile?.calorieGoal ?? 2000
-  const todayStr = todayIso
+  const analytics = useAnalyticsData(periodDays, profile)
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Аналитика</Text>
-        <Text style={styles.subtitle}>За последние 7 дней</Text>
+        <Text style={styles.subtitle}>Питание и прогресс</Text>
+      </View>
+
+      <View style={styles.periodRow}>
+        {PERIOD_OPTIONS.map((p) => (
+          <Pressable
+            key={p}
+            onPress={() => setPeriodDays(p)}
+            style={({ pressed }) => [
+              styles.periodChip,
+              periodDays === p && styles.periodChipActive,
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={[styles.periodChipText, periodDays === p && styles.periodChipTextActive]}>
+              {p}д
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       <ScrollView
@@ -113,45 +93,118 @@ export default function AnalyticsScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Калории по дням</Text>
           <View style={styles.barsRow}>
-            {weekData.map((d) => (
-              <WeekBar
+            {analytics.weekData.map((d: DayAnalytics) => (
+              <DayBar
                 key={d.date}
                 day={d.dayName}
                 calories={d.kcal}
-                goal={goal}
-                isToday={d.date === todayStr}
+                goal={analytics.goals.kcal}
+                isToday={d.date === analytics.todayIso}
               />
             ))}
           </View>
           <View style={styles.goalLine}>
-            <Text style={styles.goalLineText}>Цель: {formatNutritionNumber(goal)} ккал</Text>
+            <Text style={styles.goalLineText}>
+              Цель: {formatNutritionNumber(analytics.goals.kcal)} ккал · период: {periodDays} дней
+            </Text>
           </View>
         </View>
 
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { flex: 1 }]}>
             <Text style={[styles.statValue, { color: Colors.calories }]}>
-              {formatNutritionNumber(avgKcal)}
+              {formatNutritionNumber(analytics.avgKcal)}
             </Text>
             <Text style={styles.statLabel}>ккал / день</Text>
             <Text style={styles.statCaption}>среднее</Text>
           </View>
           <View style={[styles.statCard, { flex: 1 }]}>
             <Text style={[styles.statValue, { color: Colors.primary }]}>
-              {weekData.filter((d) => d.kcal > 0 && d.kcal <= goal * 1.05).length}
+              {analytics.daysInNorm}
             </Text>
             <Text style={styles.statLabel}>дней в норме</Text>
-            <Text style={styles.statCaption}>из 7</Text>
+            <Text style={styles.statCaption}>из {periodDays}</Text>
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Средние макронутриенты</Text>
+          <Text style={styles.cardTitle}>Day Score и отклонение</Text>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { flex: 1 }]}>
+              <Text
+                style={[
+                  styles.statValue,
+                  { color: analytics.dayScoreToday >= 80 ? Colors.primary : Colors.accent },
+                ]}
+              >
+                {formatNutritionNumber(analytics.dayScoreToday)}
+              </Text>
+              <Text style={styles.statLabel}>Day Score</Text>
+              <Text style={styles.statCaption}>сегодня</Text>
+            </View>
+            <View style={[styles.statCard, { flex: 1 }]}>
+              <Text style={[styles.statValue, { color: Colors.secondary }]}>
+                {formatNutritionNumber(analytics.avgDayScore)}
+              </Text>
+              <Text style={styles.statLabel}>Day Score</Text>
+              <Text style={styles.statCaption}>средний</Text>
+            </View>
+          </View>
+          <View style={styles.deviationBlock}>
+            <Text style={styles.deviationTitle}>Отклонение калорий от цели</Text>
+            <Text
+              style={[
+                styles.deviationValue,
+                analytics.calorieDeviationAvgPct > 8
+                  ? { color: Colors.danger }
+                  : analytics.calorieDeviationAvgPct < -8
+                    ? { color: Colors.secondary }
+                    : { color: Colors.primary },
+              ]}
+            >
+              {analytics.calorieDeviationAvgPct > 0 ? '+' : ''}
+              {formatNutritionNumber(analytics.calorieDeviationAvgPct)}%
+            </Text>
+            <Text style={styles.statCaption}>в среднем за выбранный период</Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Распределение БЖУ</Text>
           {(['protein', 'fat', 'carbs'] as const).map((macro) => {
-            const avg =
-              weekData.filter((d) => d.kcal > 0).reduce((s, d) => s + d[macro], 0) /
-              Math.max(weekData.filter((d) => d.kcal > 0).length, 1)
             const mc = MacroColors[macro]
+            const pct = analytics.macroDistribution[macro]
+            return (
+              <View key={`${macro}-dist`} style={styles.macroRow}>
+                <Text style={[styles.macroName, { color: mc.color }]}>{mc.label}</Text>
+                <View style={styles.macroBarTrack}>
+                  <View
+                    style={[
+                      styles.macroBarFill,
+                      {
+                        width: `${Math.min(pct, 100)}%`,
+                        backgroundColor: mc.color,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroValue}>{formatNutritionNumber(pct)}%</Text>
+              </View>
+            )
+          })}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Средние БЖУ в граммах</Text>
+          {(['protein', 'fat', 'carbs'] as const).map((macro) => {
+            const avg = analytics.avgByMacro[macro]
+            const mc = MacroColors[macro]
+            const goalByMacro =
+              macro === 'protein'
+                ? analytics.goals.protein
+                : macro === 'fat'
+                  ? analytics.goals.fat
+                  : analytics.goals.carbs
             return (
               <View key={macro} style={styles.macroRow}>
                 <Text style={[styles.macroName, { color: mc.color }]}>{mc.label}</Text>
@@ -159,7 +212,10 @@ export default function AnalyticsScreen() {
                   <View
                     style={[
                       styles.macroBarFill,
-                      { width: `${Math.min((avg / 200) * 100, 100)}%`, backgroundColor: mc.color },
+                      {
+                        width: `${Math.min((avg / Math.max(goalByMacro, 1)) * 100, 100)}%`,
+                        backgroundColor: mc.color,
+                      },
                     ]}
                   />
                 </View>
@@ -169,12 +225,35 @@ export default function AnalyticsScreen() {
           })}
         </View>
 
-        <View style={[styles.card, styles.comingSoon]}>
-          <Text style={styles.comingSoonEmoji}>🚀</Text>
-          <Text style={styles.comingSoonTitle}>Расширенная аналитика</Text>
-          <Text style={styles.comingSoonText}>
-            Графики прогресса, динамика веса и детальный анализ питания — скоро
-          </Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Тренд по неделям</Text>
+          {analytics.weeklyTrend.map((w) => (
+            <View key={w.weekStart} style={styles.trendRow}>
+              <Text style={styles.trendWeek}>Неделя {w.weekStart.slice(5)}</Text>
+              <Text style={styles.trendMetric}>
+                {formatNutritionNumber(w.avgKcal)} ккал/день · Score{' '}
+                {formatNutritionNumber(w.avgScore)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Smart Insights</Text>
+          {analytics.smartInsights.map((ins, idx) => (
+            <Text key={`ins-${idx}`} style={styles.bulletText}>
+              • {ins}
+            </Text>
+          ))}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Рекомендации</Text>
+          {analytics.recommendations.map((tip, idx) => (
+            <Text key={`tip-${idx}`} style={styles.bulletText}>
+              • {tip}
+            </Text>
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -186,6 +265,26 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   title: { ...Typography.h2 },
   subtitle: { ...Typography.caption, marginTop: 2 },
+  periodRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  periodChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.round,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  periodChipActive: {
+    backgroundColor: Colors.primarySurface,
+    borderColor: Colors.primaryLight,
+  },
+  periodChipText: { ...Typography.caption, fontWeight: '600', color: Colors.textSecondary },
+  periodChipTextActive: { color: Colors.primary },
   scroll: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
   card: {
@@ -235,8 +334,24 @@ const styles = StyleSheet.create({
   },
   macroBarFill: { height: '100%', borderRadius: Radius.round },
   macroValue: { ...Typography.body, fontWeight: '600', width: 50, textAlign: 'right' },
-  comingSoon: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
-  comingSoonEmoji: { fontSize: 40 },
-  comingSoonTitle: { ...Typography.h3 },
-  comingSoonText: { ...Typography.bodySmall, textAlign: 'center' },
+  deviationBlock: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  deviationTitle: { ...Typography.caption, color: Colors.textSecondary },
+  deviationValue: { fontSize: 22, fontWeight: '700' },
+  trendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.sm,
+  },
+  trendWeek: { ...Typography.caption, color: Colors.textSecondary },
+  trendMetric: { ...Typography.bodySmall, fontWeight: '600' },
+  bulletText: { ...Typography.bodySmall, lineHeight: 20, color: Colors.textSecondary },
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUserProfileQuery, useUpdateProfileMutation } from '@/hooks/useUserProfileQuery'
 import { Colors, Spacing, Radius, Typography } from '@/constants'
+import { calcTDEE } from '@/lib/nutrition'
 import type { ActivityLevel, Sex } from '@/types'
 
 const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; desc: string }[] = [
@@ -82,6 +83,18 @@ export default function ProfileScreen() {
     return Number.isFinite(n) ? n : null
   }
 
+  const weightNum = parseDecimalOrNull(weight)
+  const heightNum = parseDecimalOrNull(height)
+  const ageNum = useMemo(() => {
+    const n = parseInt(age, 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [age])
+
+  const recommendedCalories = useMemo(() => {
+    if (!weightNum || !heightNum || !ageNum || !sex) return null
+    return calcTDEE(weightNum, heightNum, ageNum, sex, activityLevel)
+  }, [weightNum, heightNum, ageNum, sex, activityLevel])
+
   if (profile && !initialized) {
     setWeight(profile.weight ? String(profile.weight) : '')
     setHeight(profile.height ? String(profile.height) : '')
@@ -100,7 +113,7 @@ export default function ProfileScreen() {
         age: parseInt(age, 10) || null,
         sex,
         activityLevel,
-        calorieGoal: parseInt(calorieGoal, 10) || 2000,
+        calorieGoal: parseInt(calorieGoal, 10) || recommendedCalories || 2000,
       },
       {
         onSuccess: () => Alert.alert('Сохранено', 'Профиль обновлён'),
@@ -222,10 +235,18 @@ export default function ProfileScreen() {
               />
               <Text style={styles.goalSuffix}>ккал / день</Text>
             </View>
-            {profile?.calorieGoal ? (
+            {recommendedCalories ? (
               <View style={styles.tdeeHint}>
-                <Text style={styles.tdeeHintText}>Рекомендуется ~{profile.calorieGoal} ккал</Text>
+                <Text style={styles.tdeeHintText}>Рекомендуется ~{recommendedCalories} ккал</Text>
                 <Text style={styles.tdeeSubText}>(по данным профиля)</Text>
+                <Pressable
+                  onPress={() => setCalorieGoal(String(recommendedCalories))}
+                  style={styles.applyTdeeBtn}
+                  accessibilityRole='button'
+                  accessibilityLabel='Применить рекомендованную цель по калориям'
+                >
+                  <Text style={styles.applyTdeeBtnText}>Применить</Text>
+                </Pressable>
               </View>
             ) : null}
           </View>
@@ -353,4 +374,15 @@ const styles = StyleSheet.create({
   tdeeHint: { gap: 2 },
   tdeeHintText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
   tdeeSubText: { ...Typography.caption },
+  applyTdeeBtn: {
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  applyTdeeBtnText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 })
