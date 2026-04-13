@@ -2,9 +2,13 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { LegendList } from '@legendapp/list'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, type RelativePathString } from 'expo-router'
 import { useProductsQuery } from '@/hooks/useProductsQuery'
-import { useCreateMealEntryMutation } from '@/hooks/useMealEntryMutations'
+import {
+  useCreateMealEntryMutation,
+  useCreateRecipeMealEntryMutation,
+} from '@/hooks/useMealEntryMutations'
+import { useRecipesQuery } from '@/hooks/useRecipesQuery'
 import { Colors, Spacing, Radius, Typography } from '@/constants'
 import { BarcodeIcon } from '@/components/ui/BarcodeIcon'
 import { GramsSheet } from '@/components/ui/GramsSheet'
@@ -14,7 +18,7 @@ import { getSearchCache, setSearchCache } from '@/lib/cache'
 import { productsRepository } from '@/db/repositories'
 import { calcNutritionFromGrams } from '@/lib/nutrition'
 import { formatNutritionNumber } from '@/lib/format-nutrition'
-import type { Product, MealType, CreateProductInput } from '@/types'
+import type { Product, MealType, CreateProductInput, Recipe } from '@/types'
 import type { FatSecretOnlineResult } from '@/services/fatsecret.service'
 import * as Haptics from 'expo-haptics'
 
@@ -28,9 +32,10 @@ const MEAL_LABELS: Record<string, string> = {
 // ────── List item types ──────
 
 type LocalListItem = { type: 'local'; product: Product }
+type RecipeListItem = { type: 'recipe'; recipe: Recipe }
 type OnlineListItem = { type: 'online'; result: FatSecretOnlineResult }
 type HeaderListItem = { type: 'header'; title: string; subtitle?: string }
-type ListItem = LocalListItem | OnlineListItem | HeaderListItem
+type ListItem = LocalListItem | RecipeListItem | OnlineListItem | HeaderListItem
 
 // ────── Description parser for FatSecret ──────
 
@@ -180,6 +185,62 @@ function OnlineProductRow({
   )
 }
 
+function RecipeRow({
+  recipe,
+  onPress,
+  onEdit,
+}: {
+  recipe: Recipe
+  onPress: (r: Recipe) => void
+  onEdit: (r: Recipe) => void
+}) {
+  const totalGrams = recipe.ingredients.reduce((sum, i) => sum + i.grams, 0)
+  const per100Factor = totalGrams > 0 ? 100 / totalGrams : 0
+  return (
+    <View style={styles.onlineRow}>
+      <Pressable
+        onPress={() => onPress(recipe)}
+        style={({ pressed }) => [styles.productRowMain, pressed && styles.productRowPressed]}
+      >
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {recipe.name}
+          </Text>
+          <Text style={styles.productBrand}>
+            Рецепт · {recipe.ingredients.length} ингр. · {formatNutritionNumber(totalGrams)} г
+          </Text>
+          <View style={styles.onlineMacroRow}>
+            <Text style={[styles.onlineMacro, { color: Colors.calories }]}>
+              {formatNutritionNumber(recipe.totalKcal * per100Factor)} ккал/100г
+            </Text>
+            <Text style={[styles.onlineMacro, { color: Colors.protein }]}>
+              Б{formatNutritionNumber(recipe.totalProtein * per100Factor)}
+            </Text>
+            <Text style={[styles.onlineMacro, { color: Colors.fat }]}>
+              Ж{formatNutritionNumber(recipe.totalFat * per100Factor)}
+            </Text>
+            <Text style={[styles.onlineMacro, { color: Colors.carbs }]}>
+              У{formatNutritionNumber(recipe.totalCarbs * per100Factor)}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={styles.saveOnlineBtn}>
+        <Text style={styles.saveOnlineBtnText}>Выбрать</Text>
+      </View>
+      <Pressable
+        onPress={() => onEdit(recipe)}
+        style={({ pressed }) => [styles.productEditBtn, pressed && { opacity: 0.7 }]}
+        hitSlop={10}
+        accessibilityRole='button'
+        accessibilityLabel={`Редактировать рецепт: ${recipe.name}`}
+      >
+        <Text style={styles.productEditBtnText}>✎</Text>
+      </Pressable>
+    </View>
+  )
+}
+
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.sectionHeader}>
@@ -215,12 +276,15 @@ export default function AddFoodScreen() {
 
   const [search, setSearch] = useState(params.search ?? '')
   const [selected, setSelected] = useState<Product | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [onlineResults, setOnlineResults] = useState<FatSecretOnlineResult[]>([])
   const [isOnlineLoading, setIsOnlineLoading] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
   const { data: localProducts, isLoading: isLocalLoading } = useProductsQuery(search)
+  const { data: recipes = [] } = useRecipesQuery(search)
   const createMutation = useCreateMealEntryMutation()
+  const createRecipeMutation = useCreateRecipeMealEntryMutation()
 
   const routeProductId = useMemo(() => {
     const raw = params.productId
@@ -360,12 +424,40 @@ export default function AddFoodScreen() {
     [selected, createMutation, date, mealType, router]
   )
 
+  const handleRecipePress = useCallback((recipe: Recipe) => {
+    void Haptics.selectionAsync()
+    setSelectedRecipe(recipe)
+  }, [])
+
+  const handleRecipeConfirm = useCallback(
+    (gramsNum: number) => {
+      if (!selectedRecipe) return
+      createRecipeMutation.mutate(
+        { date, mealType, recipeId: selectedRecipe.id, grams: gramsNum },
+        {
+          onSuccess: () => {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+            router.back()
+          },
+        }
+      )
+    },
+    [selectedRecipe, createRecipeMutation, date, mealType, router]
+  )
+
   const listData = useMemo((): ListItem[] => {
     const list: ListItem[] = []
     const hasLocal = (localProducts?.length ?? 0) > 0
+    const hasRecipes = recipes.length > 0
     const hasOnline = onlineResults.length > 0
 
     if (search.trim()) {
+      if (hasRecipes) {
+        list.push({ type: 'header', title: 'Рецепты' })
+        for (const r of recipes) {
+          list.push({ type: 'recipe', recipe: r })
+        }
+      }
       if (hasLocal) {
         list.push({ type: 'header', title: 'Из вашей базы' })
         for (const p of localProducts ?? []) {
@@ -381,15 +473,22 @@ export default function AddFoodScreen() {
         }
       }
     } else {
+      if (hasRecipes) {
+        list.push({ type: 'header', title: 'Рецепты' })
+        for (const r of recipes) {
+          list.push({ type: 'recipe', recipe: r })
+        }
+      }
       for (const p of localProducts ?? []) {
         list.push({ type: 'local', product: p })
       }
     }
     return list
-  }, [search, localProducts, onlineResults, isOnlineLoading])
+  }, [search, localProducts, recipes, onlineResults, isOnlineLoading])
 
   const keyExtractor = useCallback((item: ListItem, index: number) => {
     if (item.type === 'local') return `l:${item.product.id}`
+    if (item.type === 'recipe') return `r:${item.recipe.id}`
     if (item.type === 'online') return `o:${item.result.fatsecretId}`
     return `h:${item.title}:${index}`
   }, [])
@@ -400,6 +499,17 @@ export default function AddFoodScreen() {
     (product: Product) => {
       void Haptics.selectionAsync()
       router.push({ pathname: '/add-product', params: { productId: product.id } })
+    },
+    [router]
+  )
+
+  const handleEditRecipe = useCallback(
+    (recipe: Recipe) => {
+      void Haptics.selectionAsync()
+      router.push({
+        pathname: '/add-recipe' as RelativePathString,
+        params: { recipeId: recipe.id },
+      })
     },
     [router]
   )
@@ -418,6 +528,11 @@ export default function AddFoodScreen() {
           />
         )
       }
+      if (item.type === 'recipe') {
+        return (
+          <RecipeRow recipe={item.recipe} onPress={handleRecipePress} onEdit={handleEditRecipe} />
+        )
+      }
       return (
         <OnlineProductRow
           result={item.result}
@@ -426,7 +541,14 @@ export default function AddFoodScreen() {
         />
       )
     },
-    [handleLocalPress, handleEditProduct, handleOnlineSave, savingId]
+    [
+      handleLocalPress,
+      handleEditProduct,
+      handleOnlineSave,
+      handleRecipePress,
+      handleEditRecipe,
+      savingId,
+    ]
   )
 
   const isEmpty = !isLocalLoading && listData.length === 0
@@ -442,13 +564,24 @@ export default function AddFoodScreen() {
           <Text style={styles.headerTitle}>Добавить продукт</Text>
           <Text style={styles.headerSubtitle}>{MEAL_LABELS[mealType] ?? mealType}</Text>
         </View>
-        <Pressable
-          onPress={() => router.push({ pathname: '/scanner', params: { mealType, date } })}
-          style={styles.scanButton}
-          hitSlop={8}
-        >
-          <BarcodeIcon size={15} color={Colors.primary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => router.push('/add-product')}
+            style={styles.recipeButton}
+            hitSlop={8}
+            accessibilityRole='button'
+            accessibilityLabel='Добавить свой продукт'
+          >
+            <Text style={styles.recipeButtonText}>Свой продукт</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push({ pathname: '/scanner', params: { mealType, date } })}
+            style={styles.scanButton}
+            hitSlop={8}
+          >
+            <BarcodeIcon size={15} color={Colors.primary} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Search bar */}
@@ -517,6 +650,30 @@ export default function AddFoodScreen() {
           onConfirm={handleConfirm}
         />
       ) : null}
+
+      {selectedRecipe ? (
+        <GramsSheet
+          key={`recipe-${selectedRecipe.id}`}
+          visible
+          onClose={() => setSelectedRecipe(null)}
+          title={selectedRecipe.name}
+          brand={`Рецепт · ${selectedRecipe.ingredients.length} ингредиентов`}
+          contextLine={`Приём пищи: ${MEAL_LABELS[mealType] ?? mealType}`}
+          initialGrams={String(selectedRecipe.ingredients.reduce((s, i) => s + i.grams, 0) || 100)}
+          computePreview={(g) => {
+            const base = selectedRecipe.ingredients.reduce((s, i) => s + i.grams, 0) || 1
+            const factor = g / base
+            return {
+              kcal: selectedRecipe.totalKcal * factor,
+              protein: selectedRecipe.totalProtein * factor,
+              fat: selectedRecipe.totalFat * factor,
+              carbs: selectedRecipe.totalCarbs * factor,
+            }
+          }}
+          confirmLabel='Добавить рецепт в дневник'
+          onConfirm={handleRecipeConfirm}
+        />
+      ) : null}
     </View>
   )
 }
@@ -549,6 +706,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
   headerTitle: {
     ...Typography.h4,
   },
@@ -565,6 +727,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  recipeButton: {
+    height: 34,
+    borderRadius: Radius.round,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipeButtonText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',

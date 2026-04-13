@@ -41,6 +41,10 @@ export default function RootLayout() {
               options={{ headerShown: false, presentation: 'modal' }}
             />
             <Stack.Screen
+              name='add-recipe'
+              options={{ headerShown: false, presentation: 'modal' }}
+            />
+            <Stack.Screen
               name='scanner'
               options={{ headerShown: false, presentation: 'fullScreenModal' }}
             />
