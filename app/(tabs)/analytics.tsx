@@ -8,6 +8,8 @@ import { Colors, Spacing, Radius, Typography, MacroColors } from '@/constants'
 import { formatNutritionNumber } from '@/lib/format-nutrition'
 import type { DayAnalytics } from '@/lib/analytics'
 
+const ANDROID_TABBAR_OVERLAY_GAP = 72
+
 function DayBar({
   day,
   calories,
@@ -87,7 +89,13 @@ export default function AnalyticsScreen() {
       <ScrollView
         style={styles.scroll}
         contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom:
+              insets.bottom + (Platform.OS === 'android' ? ANDROID_TABBAR_OVERLAY_GAP : 24),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>

@@ -16,6 +16,8 @@ import { Colors, Spacing, Radius, Typography } from '@/constants'
 import { calcTDEE } from '@/lib/nutrition'
 import type { ActivityLevel, Sex } from '@/types'
 
+const ANDROID_TABBAR_OVERLAY_GAP = 72
+
 const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; desc: string }[] = [
   { value: 'sedentary', label: 'Сидячий', desc: 'Минимум движения' },
   { value: 'light', label: 'Лёгкий', desc: '1-3 тренировки/нед' },
@@ -151,7 +153,13 @@ export default function ProfileScreen() {
       <ScrollView
         style={styles.scroll}
         contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom:
+              insets.bottom + (Platform.OS === 'android' ? ANDROID_TABBAR_OVERLAY_GAP : 40),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <SectionHeader title='Личные данные' />

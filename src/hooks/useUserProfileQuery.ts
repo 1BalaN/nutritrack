@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userProfileRepository } from '@/db/repositories'
+import { enqueueSync } from '@/services'
 import type { UpdateUserProfileInput } from '@/types'
 
 const PROFILE_KEY = ['userProfile'] as const
@@ -15,7 +16,11 @@ export function useUserProfileQuery() {
 export function useUpdateProfileMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: UpdateUserProfileInput) => userProfileRepository.update(input),
+    mutationFn: async (input: UpdateUserProfileInput) => {
+      const updated = await userProfileRepository.update(input)
+      await enqueueSync('user_profile', updated.id, 'update', updated)
+      return updated
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: PROFILE_KEY }),
   })
 }

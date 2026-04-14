@@ -18,6 +18,7 @@ import { useProductsQuery } from '@/hooks/useProductsQuery'
 import { Colors, Radius, Spacing, Typography } from '@/constants'
 import { queryKeys } from '@/query/query-keys'
 import { formatNutritionNumber } from '@/lib/format-nutrition'
+import { enqueueSync } from '@/services'
 import type { Product } from '@/types'
 
 type RecipeIngredientDraft = {
@@ -134,17 +135,19 @@ export default function AddRecipeScreen() {
     setSaving(true)
     try {
       if (recipeId) {
-        await recipesRepository.update(recipeId, {
+        const updated = await recipesRepository.update(recipeId, {
           name: cleanName,
           servings: 1,
           ingredients: cleanIngredients,
         })
+        await enqueueSync('recipe', recipeId, 'update', updated)
       } else {
-        await recipesRepository.create({
+        const created = await recipesRepository.create({
           name: cleanName,
           servings: 1,
           ingredients: cleanIngredients,
         })
+        await enqueueSync('recipe', created.id, 'create', created)
       }
       await qc.invalidateQueries({ queryKey: queryKeys.recipes.all })
       router.back()
@@ -173,6 +176,10 @@ export default function AddRecipeScreen() {
             void (async () => {
               const affectedDates = await mealEntriesRepository.deleteByRecipeId(recipeId)
               await recipesRepository.delete(recipeId)
+              await enqueueSync('recipe', recipeId, 'delete', {
+                id: recipeId,
+                updatedAt: Date.now(),
+              })
               await qc.invalidateQueries({ queryKey: queryKeys.recipes.all })
               for (const d of affectedDates) {
                 await qc.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(d) })

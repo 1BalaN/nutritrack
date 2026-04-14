@@ -1,24 +1,34 @@
 import { pendingSyncRepository } from '@/db/repositories'
 import { mealEntriesRepository } from '@/db/repositories'
-import { apiClient, normalizeError } from '@/lib/api'
+import { normalizeError } from '@/lib/api'
 import { appStorage } from '@/lib/storage'
 import { useSyncStore } from '@/store/sync.store'
-import type { PendingSync, SyncEntityType, SyncOperation } from '@/types'
+import { syncPendingItemToFirebase } from './firebase-sync.service'
+import type { PendingSync } from '@/types'
 
 const MAX_BATCH_SIZE = 50
 const MAX_RETRY_COUNT = 5
-
-interface SyncPayload {
-  entityType: SyncEntityType
-  entityId: string
-  operation: SyncOperation
-  data: unknown
-}
 
 interface SyncResult {
   synced: number
   failed: number
   skipped: number
+}
+
+const BASE_RETRY_BACKOFF_MS = 2_000
+const MAX_RETRY_BACKOFF_MS = 5 * 60_000
+
+function computeBackoffMs(retryCount: number) {
+  return Math.min(
+    MAX_RETRY_BACKOFF_MS,
+    BASE_RETRY_BACKOFF_MS * Math.pow(2, Math.max(0, retryCount - 1))
+  )
+}
+
+function shouldDeferRetry(item: PendingSync) {
+  if (item.retryCount <= 0) return false
+  const waitMs = computeBackoffMs(item.retryCount)
+  return Date.now() - item.createdAt < waitMs
 }
 
 async function processBatch(items: PendingSync[]): Promise<SyncResult> {
@@ -29,25 +39,18 @@ async function processBatch(items: PendingSync[]): Promise<SyncResult> {
       result.skipped++
       continue
     }
-
-    let data: unknown
-    try {
-      data = JSON.parse(item.payload)
-    } catch {
-      await pendingSyncRepository.incrementRetry(item.id)
-      result.failed++
+    if (shouldDeferRetry(item)) {
+      result.skipped++
       continue
     }
 
-    const payload: SyncPayload = {
-      entityType: item.entityType,
-      entityId: item.entityId,
-      operation: item.operation,
-      data,
-    }
-
     try {
-      await apiClient.post('/sync', payload)
+      const outcome = await syncPendingItemToFirebase(item)
+      if (outcome === 'skipped') {
+        await pendingSyncRepository.delete(item.id)
+        result.skipped++
+        continue
+      }
 
       if (item.entityType === 'meal_entry' && item.operation !== 'delete') {
         await mealEntriesRepository.markSynced([item.entityId])

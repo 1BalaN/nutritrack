@@ -1,5 +1,6 @@
 export { syncService } from './sync.service'
 export { enqueueSync } from './sync-queue'
+export { startSyncManager, stopSyncManager } from './sync-manager'
 export { lookupBarcode } from './open-food-facts.service'
 export type { OFFResult } from './open-food-facts.service'
 export {

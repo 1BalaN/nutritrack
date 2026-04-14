@@ -19,6 +19,7 @@ import { productsRepository, mealEntriesRepository } from '@/db/repositories'
 import { numberToInputString, formatNutritionNumber } from '@/lib/format-nutrition'
 import { queryKeys } from '@/query/query-keys'
 import { Colors, Spacing, Radius, Typography } from '@/constants'
+import { enqueueSync } from '@/services'
 
 interface FieldConfig {
   key: keyof FormState
@@ -241,6 +242,7 @@ export default function AddProductScreen() {
           Alert.alert('Ошибка', 'Продукт не найден.')
           return
         }
+        await enqueueSync('product', updated.id, 'update', updated)
         const dates = await mealEntriesRepository.recalculateNutritionForProductId(productId)
         await invalidateMealDays(qc, dates)
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -248,7 +250,7 @@ export default function AddProductScreen() {
         return
       }
 
-      await productsRepository.create({
+      const created = await productsRepository.create({
         name: form.name.trim(),
         brand: form.brand.trim() || null,
         kcalPer100g: parseNum(form.kcal),
@@ -261,6 +263,7 @@ export default function AddProductScreen() {
         barcode: null,
         source: 'manual',
       })
+      await enqueueSync('product', created.id, 'create', created)
       await qc.invalidateQueries({ queryKey: queryKeys.products.all })
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.back()
@@ -302,6 +305,10 @@ export default function AddProductScreen() {
                 try {
                   const dates = await mealEntriesRepository.deleteByProductId(productId)
                   await productsRepository.delete(productId)
+                  await enqueueSync('product', productId, 'delete', {
+                    id: productId,
+                    updatedAt: Date.now(),
+                  })
                   await invalidateMealDays(qc, dates)
                   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                   router.back()
