@@ -12,15 +12,16 @@ jest.mock('@/db/repositories', () => ({
 }))
 
 jest.mock('@/lib/api', () => ({
-  apiClient: {
-    post: jest.fn(),
-  },
   normalizeError: jest.fn((err: unknown) => ({
     message: err instanceof Error ? err.message : 'error',
     status: null,
     code: null,
     isNetworkError: true,
   })),
+}))
+
+jest.mock('@/services/firebase-sync.service', () => ({
+  syncPendingItemToFirebase: jest.fn(),
 }))
 
 jest.mock('@/lib/storage', () => ({
@@ -67,8 +68,10 @@ function getMocks() {
     }
   }
   const api = jest.requireMock('@/lib/api') as {
-    apiClient: { post: jest.Mock }
     normalizeError: jest.Mock
+  }
+  const firebaseSync = jest.requireMock('@/services/firebase-sync.service') as {
+    syncPendingItemToFirebase: jest.Mock
   }
   const storage = jest.requireMock('@/lib/storage') as {
     appStorage: { isSyncEnabled: jest.Mock }
@@ -88,6 +91,7 @@ function getMocks() {
     pending: repos.pendingSyncRepository,
     mealEntries: repos.mealEntriesRepository,
     api,
+    firebaseSync,
     storage: storage.appStorage,
     syncState,
   }
@@ -114,7 +118,7 @@ describe('syncService.sync', () => {
   })
 
   it('syncs items successfully', async () => {
-    const { storage, pending, mealEntries, api, syncState } = getMocks()
+    const { storage, pending, mealEntries, firebaseSync, syncState } = getMocks()
     storage.isSyncEnabled.mockReturnValue(true)
     const item = {
       id: 'sync1',
@@ -127,7 +131,7 @@ describe('syncService.sync', () => {
     }
     pending.findAll.mockResolvedValue([item])
     pending.count.mockResolvedValue(0)
-    api.apiClient.post.mockResolvedValue({ data: {} })
+    firebaseSync.syncPendingItemToFirebase.mockResolvedValue('synced')
     mealEntries.markSynced.mockResolvedValue(undefined)
     pending.delete.mockResolvedValue(undefined)
 
@@ -138,7 +142,7 @@ describe('syncService.sync', () => {
   })
 
   it('skips items with too many retries', async () => {
-    const { storage, pending, api } = getMocks()
+    const { storage, pending, firebaseSync } = getMocks()
     storage.isSyncEnabled.mockReturnValue(true)
     const item = {
       id: 'sync2',
@@ -154,11 +158,11 @@ describe('syncService.sync', () => {
 
     const result = await syncService.sync()
     expect(result.skipped).toBe(1)
-    expect(api.apiClient.post).not.toHaveBeenCalled()
+    expect(firebaseSync.syncPendingItemToFirebase).not.toHaveBeenCalled()
   })
 
   it('increments retry on network error', async () => {
-    const { storage, pending, api, syncState } = getMocks()
+    const { storage, pending, firebaseSync, syncState } = getMocks()
     storage.isSyncEnabled.mockReturnValue(true)
     const item = {
       id: 'sync3',
@@ -171,7 +175,7 @@ describe('syncService.sync', () => {
     }
     pending.findAll.mockResolvedValue([item])
     pending.count.mockResolvedValue(1)
-    api.apiClient.post.mockRejectedValue(new Error('network error'))
+    firebaseSync.syncPendingItemToFirebase.mockRejectedValue(new Error('network error'))
     pending.incrementRetry.mockResolvedValue(undefined)
 
     const result = await syncService.sync()
@@ -180,8 +184,8 @@ describe('syncService.sync', () => {
     expect(syncState.setSyncError).toHaveBeenCalled()
   })
 
-  it('deletes on 409 conflict without retry', async () => {
-    const { storage, pending, api } = getMocks()
+  it('deletes item when firebase sync reports skipped conflict', async () => {
+    const { storage, pending, firebaseSync } = getMocks()
     storage.isSyncEnabled.mockReturnValue(true)
     const item = {
       id: 'sync4',
@@ -195,17 +199,7 @@ describe('syncService.sync', () => {
     pending.findAll.mockResolvedValue([item])
     pending.count.mockResolvedValue(0)
 
-    const conflictError = { response: { status: 409 } }
-    const { normalizeError } = api as {
-      normalizeError: jest.Mock
-    }
-    normalizeError.mockReturnValueOnce({
-      message: 'conflict',
-      status: 409,
-      code: null,
-      isNetworkError: false,
-    })
-    api.apiClient.post.mockRejectedValue(conflictError)
+    firebaseSync.syncPendingItemToFirebase.mockResolvedValue('skipped')
     pending.delete.mockResolvedValue(undefined)
 
     const result = await syncService.sync()

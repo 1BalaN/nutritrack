@@ -27,6 +27,7 @@ import { Colors, Spacing, Radius, Typography } from '@/constants'
 import type { EnrichedMealEntry } from '@/types'
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const
+const ANDROID_TABBAR_OVERLAY_GAP = 72
 
 export default function DiaryScreen() {
   const insets = useSafeAreaInsets()
@@ -108,7 +109,13 @@ export default function DiaryScreen() {
       <ScrollView
         style={styles.scroll}
         contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom:
+              insets.bottom + (Platform.OS === 'android' ? ANDROID_TABBAR_OVERLAY_GAP : 24),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

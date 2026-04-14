@@ -56,9 +56,10 @@ export const pendingSyncRepository = {
   async incrementRetry(id: string): Promise<void> {
     const rows = await db.select().from(pendingSync).where(eq(pendingSync.id, id)).limit(1)
     if (!rows[0]) return
+    const ts = now()
     await db
       .update(pendingSync)
-      .set({ retryCount: rows[0].retryCount + 1 })
+      .set({ retryCount: rows[0].retryCount + 1, createdAt: ts })
       .where(eq(pendingSync.id, id))
   },
 

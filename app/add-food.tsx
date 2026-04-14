@@ -14,6 +14,7 @@ import { BarcodeIcon } from '@/components/ui/BarcodeIcon'
 import { GramsSheet } from '@/components/ui/GramsSheet'
 import { isFatSecretConfigured } from '@/lib/api'
 import { fsSearchOnline, fsFetchAndNormalize } from '@/services/fatsecret.service'
+import { enqueueSync } from '@/services'
 import { getSearchCache, setSearchCache } from '@/lib/cache'
 import { productsRepository } from '@/db/repositories'
 import { calcNutritionFromGrams } from '@/lib/nutrition'
@@ -321,7 +322,10 @@ export default function AddFoodScreen() {
         if (input.barcode) product = await productsRepository.findByBarcode(input.barcode)
         if (!product && input.fatsecretId)
           product = await productsRepository.findByFatsecretId(input.fatsecretId)
-        if (!product) product = await productsRepository.create(input)
+        if (!product) {
+          product = await productsRepository.create(input)
+          await enqueueSync('product', product.id, 'create', product)
+        }
 
         if (!cancelled) setSelected(product)
       })()
@@ -397,6 +401,7 @@ export default function AddFoodScreen() {
         const input = await fsFetchAndNormalize(result.fatsecretId)
         if (input) {
           product = await productsRepository.create(input)
+          await enqueueSync('product', product.id, 'create', product)
         }
       }
       if (product) {
