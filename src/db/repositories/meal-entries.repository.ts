@@ -87,6 +87,16 @@ export const mealEntriesRepository = {
     return rows[0] ? toMealEntry(rows[0]) : null
   },
 
+  async findByProductId(productId: string): Promise<MealEntry[]> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    return rows.map(toMealEntry)
+  },
+
+  async findByRecipeId(recipeId: string): Promise<MealEntry[]> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.recipeId, recipeId))
+    return rows.map(toMealEntry)
+  },
+
   async findUnsynced(): Promise<MealEntry[]> {
     const rows = await db
       .select()
@@ -257,6 +267,27 @@ export const mealEntriesRepository = {
 
   async delete(id: string): Promise<void> {
     await db.delete(mealEntries).where(eq(mealEntries.id, id))
+  },
+
+  async restoreMany(entries: MealEntry[]): Promise<void> {
+    if (entries.length === 0) return
+    await db.insert(mealEntries).values(
+      entries.map((e) => ({
+        id: e.id,
+        date: e.date,
+        mealType: e.mealType,
+        productId: e.productId,
+        recipeId: e.recipeId,
+        grams: e.grams,
+        kcal: e.kcal,
+        protein: e.protein,
+        fat: e.fat,
+        carbs: e.carbs,
+        syncedAt: e.syncedAt,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+      }))
+    )
   },
 
   async markSynced(ids: string[]): Promise<void> {

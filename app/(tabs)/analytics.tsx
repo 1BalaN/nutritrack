@@ -60,6 +60,37 @@ export default function AnalyticsScreen() {
   const [periodDays, setPeriodDays] = useState<PeriodDays>(7)
 
   const analytics = useAnalyticsData(periodDays, profile)
+  const hasAnyData = analytics.periodData.some(
+    (d) => d.kcal > 0 || d.protein > 0 || d.fat > 0 || d.carbs > 0
+  )
+
+  if (analytics.isPending) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Аналитика</Text>
+          <Text style={styles.subtitle}>Питание и прогресс</Text>
+        </View>
+        <View style={styles.skeletonCard} />
+        <View style={styles.skeletonCard} />
+        <View style={styles.skeletonCard} />
+      </View>
+    )
+  }
+
+  if (analytics.isError) {
+    return (
+      <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
+        <Text style={styles.emptyTitle}>Не удалось загрузить аналитику</Text>
+        <Pressable
+          onPress={() => void analytics.refetch()}
+          style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Text style={styles.retryBtnText}>Повторить</Text>
+        </Pressable>
+      </View>
+    )
+  }
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -98,6 +129,14 @@ export default function AnalyticsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {!hasAnyData ? (
+          <View style={styles.emptyBlock}>
+            <Text style={styles.emptyTitle}>Пока мало данных</Text>
+            <Text style={styles.emptySubtitle}>
+              Добавьте несколько записей в дневник за 2-3 дня, чтобы увидеть тренды и рекомендации.
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Калории по дням</Text>
           <View style={styles.barsRow}>
@@ -270,6 +309,12 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+  },
   header: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   title: { ...Typography.h2 },
   subtitle: { ...Typography.caption, marginTop: 2 },
@@ -295,6 +340,31 @@ const styles = StyleSheet.create({
   periodChipTextActive: { color: Colors.primary },
   scroll: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
+  skeletonCard: {
+    marginHorizontal: Spacing.lg,
+    height: 120,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceSecondary,
+    marginBottom: Spacing.md,
+  },
+  emptyBlock: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  emptyTitle: { ...Typography.h4, textAlign: 'center' },
+  emptySubtitle: { ...Typography.bodySmall, textAlign: 'center', color: Colors.textSecondary },
+  retryBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.primarySurface,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  retryBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,

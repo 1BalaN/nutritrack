@@ -1,16 +1,10 @@
 import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
 import { firestore } from '@/lib/firebase'
 import { ensureAuthenticatedUser } from '@/lib/auth'
+import { parseSyncPayload, validateSyncPayload, type SyncData } from '@/lib/sync-validation'
 import type { PendingSync, SyncEntityType } from '@/types'
 
 type SyncOutcome = 'synced' | 'skipped'
-
-type SyncData = {
-  id?: string
-  updatedAt?: number
-  createdAt?: number
-  [key: string]: unknown
-}
 
 const ENTITY_COLLECTION: Record<SyncEntityType, string> = {
   meal_entry: 'meal_entries',
@@ -21,22 +15,6 @@ const ENTITY_COLLECTION: Record<SyncEntityType, string> = {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
-}
-
-function validatePayload(
-  entityType: SyncEntityType,
-  operation: PendingSync['operation'],
-  data: SyncData
-) {
-  if (!data || typeof data !== 'object') {
-    throw new Error(`Invalid payload: ${entityType}`)
-  }
-  if (operation !== 'delete' && !data.id) {
-    throw new Error(`Invalid payload id: ${entityType}`)
-  }
-  if (operation !== 'delete' && !isFiniteNumber(data.updatedAt)) {
-    throw new Error(`Invalid payload updatedAt: ${entityType}`)
-  }
 }
 
 function getEntityDocPath(uid: string, entityType: SyncEntityType, entityId: string) {
@@ -54,8 +32,8 @@ function isRemoteNewer(remoteUpdatedAt: unknown, localUpdatedAt: unknown) {
 
 export async function syncPendingItemToFirebase(item: PendingSync): Promise<SyncOutcome> {
   const user = await ensureAuthenticatedUser()
-  const data = JSON.parse(item.payload) as SyncData
-  validatePayload(item.entityType, item.operation, data)
+  const data = parseSyncPayload(item.payload)
+  validateSyncPayload(item.entityType, item.operation, data)
 
   const entityId = data.id ?? item.entityId
   const ref = getEntityDocPath(user.uid, item.entityType, entityId)

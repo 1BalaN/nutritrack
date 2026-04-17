@@ -20,6 +20,7 @@ import { numberToInputString, formatNutritionNumber } from '@/lib/format-nutriti
 import { queryKeys } from '@/query/query-keys'
 import { Colors, Spacing, Radius, Typography } from '@/constants'
 import { enqueueSync } from '@/services'
+import type { MealEntry, Product } from '@/types'
 
 interface FieldConfig {
   key: keyof FormState
@@ -303,6 +304,8 @@ export default function AddProductScreen() {
               void (async () => {
                 setSaving(true)
                 try {
+                  const productSnapshot = await productsRepository.findById(productId)
+                  const removedEntries = await mealEntriesRepository.findByProductId(productId)
                   const dates = await mealEntriesRepository.deleteByProductId(productId)
                   await productsRepository.delete(productId)
                   await enqueueSync('product', productId, 'delete', {
@@ -310,8 +313,34 @@ export default function AddProductScreen() {
                     updatedAt: Date.now(),
                   })
                   await invalidateMealDays(qc, dates)
+                  if (productSnapshot) {
+                    Alert.alert('Удалено', 'Продукт удалён. Можно отменить действие.', [
+                      {
+                        text: 'Отменить',
+                        onPress: () => {
+                          void (async () => {
+                            await productsRepository.restore(productSnapshot as Product)
+                            await mealEntriesRepository.restoreMany(removedEntries as MealEntry[])
+                            await enqueueSync(
+                              'product',
+                              productSnapshot.id,
+                              'create',
+                              productSnapshot
+                            )
+                            for (const e of removedEntries) {
+                              await enqueueSync('meal_entry', e.id, 'create', e)
+                            }
+                            await invalidateMealDays(qc, [
+                              ...new Set(removedEntries.map((e) => e.date)),
+                            ])
+                          })()
+                        },
+                      },
+                      { text: 'Ок', style: 'cancel' },
+                    ])
+                  }
                   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-                  router.back()
+                  setLoadState('missing')
                 } catch (e) {
                   const msg = e instanceof Error ? e.message : String(e)
                   Alert.alert('Ошибка', `Не удалось удалить продукт.\n\n${msg}`)
