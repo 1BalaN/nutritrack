@@ -34,3 +34,71 @@ jobs:
 
       - name: Unit tests
         run: yarn test
+
+  eas-build-ios:
+    name: EAS Build iOS (Preview)
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Skip iOS build when EXPO_TOKEN missing
+        if: env.EXPO_TOKEN == ''
+        run: echo "EXPO_TOKEN is not set. Skipping iOS EAS build."
+
+      - name: Checkout
+        if: env.EXPO_TOKEN != ''
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: env.EXPO_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        if: env.EXPO_TOKEN != ''
+        run: yarn install --frozen-lockfile
+
+      - name: Setup EAS CLI
+        if: env.EXPO_TOKEN != ''
+        run: npm install -g eas-cli
+
+      - name: Trigger iOS preview build
+        if: env.EXPO_TOKEN != ''
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
+
+  eas-build-android:
+    name: EAS Build Android (Preview)
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Skip Android build when EXPO_TOKEN missing
+        if: env.EXPO_TOKEN == ''
+        run: echo "EXPO_TOKEN is not set. Skipping Android EAS build."
+
+      - name: Checkout
+        if: env.EXPO_TOKEN != ''
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: env.EXPO_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        if: env.EXPO_TOKEN != ''
+        run: yarn install --frozen-lockfile
+
+      - name: Setup EAS CLI
+        if: env.EXPO_TOKEN != ''
+        run: npm install -g eas-cli
+
+      - name: Trigger Android preview build
+        if: env.EXPO_TOKEN != ''
+        run: eas build --platform android --profile preview --non-interactive --no-wait
