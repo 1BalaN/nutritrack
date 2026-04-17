@@ -138,6 +138,28 @@ export const productsRepository = {
     await db.delete(products).where(eq(products.id, id))
   },
 
+  async restore(product: Product): Promise<void> {
+    const row: ProductRow = {
+      id: product.id,
+      name: product.name,
+      brand: product.brand ?? null,
+      kcalPer100g: product.kcalPer100g,
+      protein: product.protein,
+      fat: product.fat,
+      carbs: product.carbs,
+      fiber: product.fiber ?? null,
+      sugar: product.sugar ?? null,
+      sodium: product.sodium ?? null,
+      barcode: product.barcode ?? null,
+      source: product.source,
+      fatsecretId: product.fatsecretId ?? null,
+      cachedAt: product.cachedAt ?? null,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    }
+    await db.insert(products).values(row)
+  },
+
   async upsertMany(items: Product[]): Promise<void> {
     if (items.length === 0) return
     await db

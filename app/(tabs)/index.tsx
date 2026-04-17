@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   Platform,
+  LayoutAnimation,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type RelativePathString } from 'expo-router'
@@ -69,6 +70,7 @@ export default function DiaryScreen() {
 
   const handleDeleteEntry = useCallback(
     (entry: EnrichedMealEntry) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
       const name = entry.productName ?? 'продукт'
       deleteMutation.mutate(entry, {
         onSuccess: () => {
@@ -82,6 +84,7 @@ export default function DiaryScreen() {
 
   const handleUpdateEntryGrams = useCallback(
     (entry: EnrichedMealEntry, grams: number) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
       updateMealEntryMutation.mutate({ entry, grams })
     },
     [updateMealEntryMutation]

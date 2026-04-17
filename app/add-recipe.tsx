@@ -9,6 +9,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  LayoutAnimation,
+  ActivityIndicator,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -19,7 +21,7 @@ import { Colors, Radius, Spacing, Typography } from '@/constants'
 import { queryKeys } from '@/query/query-keys'
 import { formatNutritionNumber } from '@/lib/format-nutrition'
 import { enqueueSync } from '@/services'
-import type { Product } from '@/types'
+import type { MealEntry, Product, Recipe } from '@/types'
 
 type RecipeIngredientDraft = {
   product: Product
@@ -104,6 +106,7 @@ export default function AddRecipeScreen() {
   }, [totals])
 
   function addIngredient(product: Product) {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIngredients((prev) => {
       const existing = prev.find((x) => x.product.id === product.id)
       if (existing) {
@@ -174,6 +177,8 @@ export default function AddRecipeScreen() {
           style: 'destructive',
           onPress: () => {
             void (async () => {
+              const recipeSnapshot = await recipesRepository.findById(recipeId)
+              const removedEntries = await mealEntriesRepository.findByRecipeId(recipeId)
               const affectedDates = await mealEntriesRepository.deleteByRecipeId(recipeId)
               await recipesRepository.delete(recipeId)
               await enqueueSync('recipe', recipeId, 'delete', {
@@ -185,6 +190,30 @@ export default function AddRecipeScreen() {
                 await qc.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(d) })
                 await qc.invalidateQueries({ queryKey: queryKeys.mealEntries.summaryByDate(d) })
               }
+              Alert.alert('Удалено', 'Рецепт удалён. Можно отменить действие.', [
+                {
+                  text: 'Отменить',
+                  onPress: () => {
+                    void (async () => {
+                      if (!recipeSnapshot) return
+                      await recipesRepository.restore(recipeSnapshot as Recipe)
+                      await mealEntriesRepository.restoreMany(removedEntries as MealEntry[])
+                      await enqueueSync('recipe', recipeSnapshot.id, 'create', recipeSnapshot)
+                      for (const e of removedEntries) {
+                        await enqueueSync('meal_entry', e.id, 'create', e)
+                      }
+                      await qc.invalidateQueries({ queryKey: queryKeys.recipes.all })
+                      for (const d of [...new Set(removedEntries.map((e) => e.date))]) {
+                        await qc.invalidateQueries({ queryKey: queryKeys.mealEntries.byDate(d) })
+                        await qc.invalidateQueries({
+                          queryKey: queryKeys.mealEntries.summaryByDate(d),
+                        })
+                      }
+                    })()
+                  },
+                },
+                { text: 'Ок', style: 'cancel' },
+              ])
               router.back()
             })()
           },
@@ -208,8 +237,9 @@ export default function AddRecipeScreen() {
         </Pressable>
       </View>
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={styles.empty}>Загрузка...</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm }}>
+          <ActivityIndicator size='small' color={Colors.primary} />
+          <Text style={styles.empty}>Загрузка рецепта...</Text>
         </View>
       ) : null}
 
@@ -261,9 +291,10 @@ export default function AddRecipeScreen() {
                 />
                 <Text style={styles.unit}>г</Text>
                 <Pressable
-                  onPress={() =>
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
                     setIngredients((prev) => prev.filter((x) => x.product.id !== item.product.id))
-                  }
+                  }}
                   style={styles.removeBtn}
                 >
                   <Text style={styles.removeText}>✕</Text>
@@ -289,6 +320,9 @@ export default function AddRecipeScreen() {
                 </Text>
               </Pressable>
             ))}
+            {search.trim().length > 0 && products.length === 0 ? (
+              <Text style={styles.empty}>Ничего не найдено. Попробуйте другое название.</Text>
+            ) : null}
           </View>
 
           <View style={styles.totals}>

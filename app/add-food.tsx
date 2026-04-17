@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { memo, useState, useCallback, useEffect, useMemo } from 'react'
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { LegendList } from '@legendapp/list'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -73,10 +73,12 @@ function LocalProductRow({
   product,
   onPress,
   onEditProduct,
+  onQuickAdd,
 }: {
   product: Product
   onPress: (p: Product) => void
   onEditProduct: (p: Product) => void
+  onQuickAdd: (p: Product) => void
 }) {
   return (
     <View style={styles.productRow}>
@@ -109,6 +111,15 @@ function LocalProductRow({
             У{formatNutritionNumber(product.carbs)}
           </Text>
         </View>
+      </Pressable>
+      <Pressable
+        onPress={() => onQuickAdd(product)}
+        style={({ pressed }) => [styles.quickAddBtn, pressed && { opacity: 0.7 }]}
+        hitSlop={8}
+        accessibilityRole='button'
+        accessibilityLabel={`Быстро добавить 100 грамм: ${product.name}`}
+      >
+        <Text style={styles.quickAddBtnText}>+100г</Text>
       </Pressable>
       <Pressable
         onPress={() => onEditProduct(product)}
@@ -190,10 +201,12 @@ function RecipeRow({
   recipe,
   onPress,
   onEdit,
+  onQuickAdd,
 }: {
   recipe: Recipe
   onPress: (r: Recipe) => void
   onEdit: (r: Recipe) => void
+  onQuickAdd: (r: Recipe) => void
 }) {
   const totalGrams = recipe.ingredients.reduce((sum, i) => sum + i.grams, 0)
   const per100Factor = totalGrams > 0 ? 100 / totalGrams : 0
@@ -226,9 +239,9 @@ function RecipeRow({
           </View>
         </View>
       </Pressable>
-      <View style={styles.saveOnlineBtn}>
-        <Text style={styles.saveOnlineBtnText}>Выбрать</Text>
-      </View>
+      <Pressable onPress={() => onQuickAdd(recipe)} style={styles.quickAddBtn}>
+        <Text style={styles.quickAddBtnText}>+100г</Text>
+      </Pressable>
       <Pressable
         onPress={() => onEdit(recipe)}
         style={({ pressed }) => [styles.productEditBtn, pressed && { opacity: 0.7 }]}
@@ -250,6 +263,10 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
     </View>
   )
 }
+
+const MemoLocalProductRow = memo(LocalProductRow)
+const MemoOnlineProductRow = memo(OnlineProductRow)
+const MemoRecipeRow = memo(RecipeRow)
 
 // ────── Main screen ──────
 
@@ -450,6 +467,36 @@ export default function AddFoodScreen() {
     [selectedRecipe, createRecipeMutation, date, mealType, router]
   )
 
+  const handleQuickAddProduct = useCallback(
+    (product: Product) => {
+      createMutation.mutate(
+        { date, mealType, productId: product.id, grams: 100 },
+        {
+          onSuccess: () => {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+            router.back()
+          },
+        }
+      )
+    },
+    [createMutation, date, mealType, router]
+  )
+
+  const handleQuickAddRecipe = useCallback(
+    (recipe: Recipe) => {
+      createRecipeMutation.mutate(
+        { date, mealType, recipeId: recipe.id, grams: 100 },
+        {
+          onSuccess: () => {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+            router.back()
+          },
+        }
+      )
+    },
+    [createRecipeMutation, date, mealType, router]
+  )
+
   const listData = useMemo((): ListItem[] => {
     const list: ListItem[] = []
     const hasLocal = (localProducts?.length ?? 0) > 0
@@ -526,20 +573,26 @@ export default function AddFoodScreen() {
       }
       if (item.type === 'local') {
         return (
-          <LocalProductRow
+          <MemoLocalProductRow
             product={item.product}
             onPress={handleLocalPress}
             onEditProduct={handleEditProduct}
+            onQuickAdd={handleQuickAddProduct}
           />
         )
       }
       if (item.type === 'recipe') {
         return (
-          <RecipeRow recipe={item.recipe} onPress={handleRecipePress} onEdit={handleEditRecipe} />
+          <MemoRecipeRow
+            recipe={item.recipe}
+            onPress={handleRecipePress}
+            onEdit={handleEditRecipe}
+            onQuickAdd={handleQuickAddRecipe}
+          />
         )
       }
       return (
-        <OnlineProductRow
+        <MemoOnlineProductRow
           result={item.result}
           onSave={handleOnlineSave}
           isSaving={savingId === item.result.fatsecretId}
@@ -552,6 +605,8 @@ export default function AddFoodScreen() {
       handleOnlineSave,
       handleRecipePress,
       handleEditRecipe,
+      handleQuickAddProduct,
+      handleQuickAddRecipe,
       savingId,
     ]
   )
@@ -607,7 +662,13 @@ export default function AddFoodScreen() {
         ) : null}
       </View>
 
-      {isEmpty ? (
+      {isLocalLoading && listData.length === 0 ? (
+        <View style={styles.skeletonList}>
+          <View style={styles.skeletonRow} />
+          <View style={styles.skeletonRow} />
+          <View style={styles.skeletonRow} />
+        </View>
+      ) : isEmpty ? (
         <View style={styles.emptyState}>
           {search.trim() ? (
             <>
@@ -934,5 +995,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  quickAddBtn: {
+    backgroundColor: Colors.primarySurface,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    minWidth: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
+  },
+  quickAddBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  skeletonList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
+  skeletonRow: {
+    height: 72,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceSecondary,
   },
 })

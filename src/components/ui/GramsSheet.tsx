@@ -48,6 +48,7 @@ export function GramsSheet({
   onConfirm,
 }: GramsSheetProps) {
   const [grams, setGrams] = useState(initialGrams)
+  const quickGrams = [50, 100, 150, 200]
 
   const gramsNum = parseFloat(grams.replace(',', '.')) || 0
   const preview = gramsNum > 0 ? computePreview(gramsNum) : null
@@ -78,6 +79,17 @@ export function GramsSheet({
             placeholderTextColor={Colors.textTertiary}
           />
           <Text style={styles.unit}>г</Text>
+        </View>
+        <View style={styles.quickRow}>
+          {quickGrams.map((g) => (
+            <Pressable
+              key={g}
+              onPress={() => setGrams(String(g))}
+              style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={styles.quickBtnText}>+{g}г</Text>
+            </Pressable>
+          ))}
         </View>
         {preview ? (
           <View style={styles.previewRow}>
@@ -173,6 +185,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceSecondary,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginTop: -Spacing.xs,
+  },
+  quickBtn: {
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  quickBtnText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
   previewMacro: {
     alignItems: 'center',
