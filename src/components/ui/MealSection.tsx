@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet, LayoutAnimation } from 'react-native'
 import { Colors, MealConfig, Spacing, Radius, Typography } from '@/constants'
 import { GramsSheet } from '@/components/ui/GramsSheet'
@@ -63,6 +63,8 @@ function MealEntryRow({ entry, onEdit, onDelete }: MealEntryRowProps) {
     </View>
   )
 }
+
+const MemoMealEntryRow = memo(MealEntryRow)
 
 export function MealSection({
   mealType,
@@ -132,7 +134,7 @@ export function MealSection({
       {expanded ? (
         <View>
           {entries.map((entry) => (
-            <MealEntryRow
+            <MemoMealEntryRow
               key={entry.id}
               entry={entry}
               onEdit={() => openEdit(entry)}

@@ -177,4 +177,30 @@ export const recipesRepository = {
   async delete(id: string): Promise<void> {
     await db.delete(recipes).where(eq(recipes.id, id))
   },
+
+  async restore(recipe: Recipe): Promise<void> {
+    await db.insert(recipes).values({
+      id: recipe.id,
+      name: recipe.name,
+      servings: recipe.servings,
+      totalKcal: recipe.totalKcal,
+      totalProtein: recipe.totalProtein,
+      totalFat: recipe.totalFat,
+      totalCarbs: recipe.totalCarbs,
+      syncedAt: recipe.syncedAt,
+      createdAt: recipe.createdAt,
+      updatedAt: recipe.updatedAt,
+    })
+
+    if (recipe.ingredients.length > 0) {
+      await db.insert(recipeIngredients).values(
+        recipe.ingredients.map((ing) => ({
+          id: ing.id,
+          recipeId: ing.recipeId,
+          productId: ing.productId,
+          grams: ing.grams,
+        }))
+      )
+    }
+  },
 }

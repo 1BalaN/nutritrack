@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { View, Text, ActivityIndicator } from 'react-native'
 import { useDatabaseMigrations } from '@/db/migrations'
 import { ensureAuthenticatedUser } from '@/lib/auth'
+import { AppErrorBoundary } from '@/components/system/AppErrorBoundary'
 import { queryClient } from '@/query/query-client'
 import { startSyncManager, stopSyncManager } from '@/services/sync-manager'
 
@@ -44,29 +45,34 @@ function SyncBootstrap() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <DatabaseProvider>
-          <SyncBootstrap />
-          <Stack>
-            <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-            <Stack.Screen name='add-food' options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen
-              name='add-product'
-              options={{ headerShown: false, presentation: 'modal' }}
-            />
-            <Stack.Screen
-              name='add-recipe'
-              options={{ headerShown: false, presentation: 'modal' }}
-            />
-            <Stack.Screen
-              name='scanner'
-              options={{ headerShown: false, presentation: 'fullScreenModal' }}
-            />
-            <Stack.Screen name='+not-found' />
-          </Stack>
-          <StatusBar style='auto' />
-        </DatabaseProvider>
-      </QueryClientProvider>
+      <AppErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <DatabaseProvider>
+            <SyncBootstrap />
+            <Stack>
+              <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+              <Stack.Screen
+                name='add-food'
+                options={{ headerShown: false, presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name='add-product'
+                options={{ headerShown: false, presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name='add-recipe'
+                options={{ headerShown: false, presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name='scanner'
+                options={{ headerShown: false, presentation: 'fullScreenModal' }}
+              />
+              <Stack.Screen name='+not-found' />
+            </Stack>
+            <StatusBar style='auto' />
+          </DatabaseProvider>
+        </QueryClientProvider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   )
 }
