@@ -1,0 +1,375 @@
+import { between, eq, desc, inArray, isNull } from 'drizzle-orm'
+import { db } from '../client'
+import { mealEntries, products, recipes, recipeIngredients } from '../schema'
+import type { EnrichedMealEntry } from '@/types'
+import { generateId, now } from '../utils'
+import { calcNutritionFromGrams } from '@/lib/nutrition'
+import type {
+  MealEntry,
+  CreateMealEntryInput,
+  UpdateMealEntryInput,
+  NutritionSummary,
+} from '@/types'
+
+type MealEntryRow = typeof mealEntries.$inferSelect
+
+function toMealEntry(row: MealEntryRow): MealEntry {
+  return {
+    id: row.id,
+    date: row.date,
+    mealType: row.mealType,
+    productId: row.productId,
+    recipeId: row.recipeId,
+    grams: row.grams,
+    kcal: row.kcal,
+    protein: row.protein,
+    fat: row.fat,
+    carbs: row.carbs,
+    syncedAt: row.syncedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+export const mealEntriesRepository = {
+  async findByDate(date: string): Promise<MealEntry[]> {
+    const rows = await db
+      .select()
+      .from(mealEntries)
+      .where(eq(mealEntries.date, date))
+      .orderBy(mealEntries.mealType, mealEntries.createdAt)
+    return rows.map(toMealEntry)
+  },
+
+  async findByDateEnriched(date: string): Promise<EnrichedMealEntry[]> {
+    const rows = await db
+      .select({
+        id: mealEntries.id,
+        date: mealEntries.date,
+        mealType: mealEntries.mealType,
+        productId: mealEntries.productId,
+        recipeId: mealEntries.recipeId,
+        grams: mealEntries.grams,
+        kcal: mealEntries.kcal,
+        protein: mealEntries.protein,
+        fat: mealEntries.fat,
+        carbs: mealEntries.carbs,
+        syncedAt: mealEntries.syncedAt,
+        createdAt: mealEntries.createdAt,
+        updatedAt: mealEntries.updatedAt,
+        productName: products.name,
+        recipeName: recipes.name,
+        brand: products.brand,
+      })
+      .from(mealEntries)
+      .leftJoin(products, eq(mealEntries.productId, products.id))
+      .leftJoin(recipes, eq(mealEntries.recipeId, recipes.id))
+      .where(eq(mealEntries.date, date))
+      .orderBy(mealEntries.mealType, mealEntries.createdAt)
+    return rows.map((row) => ({
+      ...toMealEntry(row),
+      productName: row.recipeName ?? row.productName ?? null,
+      brand: row.recipeName ? null : (row.brand ?? null),
+    }))
+  },
+
+  async findByDateRange(from: string, to: string): Promise<MealEntry[]> {
+    const rows = await db
+      .select()
+      .from(mealEntries)
+      .where(between(mealEntries.date, from, to))
+      .orderBy(desc(mealEntries.date), mealEntries.mealType)
+    return rows.map(toMealEntry)
+  },
+
+  async findById(id: string): Promise<MealEntry | null> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.id, id)).limit(1)
+    return rows[0] ? toMealEntry(rows[0]) : null
+  },
+
+  async findByProductId(productId: string): Promise<MealEntry[]> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    return rows.map(toMealEntry)
+  },
+
+  async findByRecipeId(recipeId: string): Promise<MealEntry[]> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.recipeId, recipeId))
+    return rows.map(toMealEntry)
+  },
+
+  async findUnsynced(): Promise<MealEntry[]> {
+    const rows = await db
+      .select()
+      .from(mealEntries)
+      .where(isNull(mealEntries.syncedAt))
+      .orderBy(mealEntries.createdAt)
+    return rows.map(toMealEntry)
+  },
+
+  async create(input: CreateMealEntryInput): Promise<MealEntry> {
+    const productRows = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, input.productId))
+      .limit(1)
+
+    if (!productRows[0]) {
+      throw new Error(`Product not found: ${input.productId}`)
+    }
+
+    const product = productRows[0]
+    const nutrition = calcNutritionFromGrams(product, input.grams)
+    const id = generateId()
+    const ts = now()
+
+    const row: MealEntryRow = {
+      id,
+      date: input.date,
+      mealType: input.mealType,
+      productId: input.productId,
+      recipeId: input.recipeId ?? null,
+      grams: input.grams,
+      kcal: nutrition.kcal,
+      protein: nutrition.protein,
+      fat: nutrition.fat,
+      carbs: nutrition.carbs,
+      syncedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    }
+
+    await db.insert(mealEntries).values(row)
+    return toMealEntry(row)
+  },
+
+  async createFromRecipe(input: {
+    date: string
+    mealType: MealEntry['mealType']
+    recipeId: string
+    grams: number
+  }): Promise<MealEntry> {
+    const [recipeRow] = await db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.id, input.recipeId))
+      .limit(1)
+    if (!recipeRow) throw new Error(`Recipe not found: ${input.recipeId}`)
+
+    const ingredientRows = await db
+      .select()
+      .from(recipeIngredients)
+      .where(eq(recipeIngredients.recipeId, input.recipeId))
+    if (ingredientRows.length === 0) {
+      throw new Error('Recipe has no ingredients')
+    }
+
+    const baseGrams = ingredientRows.reduce((sum, ing) => sum + ing.grams, 0) || 1
+    const factor = input.grams / baseGrams
+    const id = generateId()
+    const ts = now()
+
+    const row: MealEntryRow = {
+      id,
+      date: input.date,
+      mealType: input.mealType,
+      // meal_entries requires product_id; keep first ingredient FK for integrity.
+      productId: ingredientRows[0].productId,
+      recipeId: input.recipeId,
+      grams: input.grams,
+      kcal: recipeRow.totalKcal * factor,
+      protein: recipeRow.totalProtein * factor,
+      fat: recipeRow.totalFat * factor,
+      carbs: recipeRow.totalCarbs * factor,
+      syncedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    }
+    await db.insert(mealEntries).values(row)
+    return toMealEntry(row)
+  },
+
+  async update(id: string, input: UpdateMealEntryInput): Promise<MealEntry | null> {
+    const existing = await this.findById(id)
+    if (!existing) return null
+
+    const ts = now()
+    const newGrams = input.grams ?? existing.grams
+
+    if (input.grams !== undefined) {
+      if (existing.recipeId) {
+        const [recipeRow] = await db
+          .select()
+          .from(recipes)
+          .where(eq(recipes.id, existing.recipeId))
+          .limit(1)
+        if (recipeRow) {
+          const ingredientRows = await db
+            .select()
+            .from(recipeIngredients)
+            .where(eq(recipeIngredients.recipeId, existing.recipeId))
+          const baseGrams = ingredientRows.reduce((sum, ing) => sum + ing.grams, 0) || 1
+          const factor = newGrams / baseGrams
+          await db
+            .update(mealEntries)
+            .set({
+              grams: newGrams,
+              kcal: recipeRow.totalKcal * factor,
+              protein: recipeRow.totalProtein * factor,
+              fat: recipeRow.totalFat * factor,
+              carbs: recipeRow.totalCarbs * factor,
+              mealType: input.mealType ?? existing.mealType,
+              date: input.date ?? existing.date,
+              syncedAt: null,
+              updatedAt: ts,
+            })
+            .where(eq(mealEntries.id, id))
+          return this.findById(id)
+        }
+      }
+
+      const productRows = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, existing.productId))
+        .limit(1)
+
+      if (productRows[0]) {
+        const nutrition = calcNutritionFromGrams(productRows[0], newGrams)
+        await db
+          .update(mealEntries)
+          .set({
+            grams: newGrams,
+            kcal: nutrition.kcal,
+            protein: nutrition.protein,
+            fat: nutrition.fat,
+            carbs: nutrition.carbs,
+            mealType: input.mealType ?? existing.mealType,
+            date: input.date ?? existing.date,
+            syncedAt: null,
+            updatedAt: ts,
+          })
+          .where(eq(mealEntries.id, id))
+      }
+    } else {
+      await db
+        .update(mealEntries)
+        .set({
+          mealType: input.mealType ?? existing.mealType,
+          date: input.date ?? existing.date,
+          syncedAt: null,
+          updatedAt: ts,
+        })
+        .where(eq(mealEntries.id, id))
+    }
+
+    return this.findById(id)
+  },
+
+  async delete(id: string): Promise<void> {
+    await db.delete(mealEntries).where(eq(mealEntries.id, id))
+  },
+
+  async restoreMany(entries: MealEntry[]): Promise<void> {
+    if (entries.length === 0) return
+    await db.insert(mealEntries).values(
+      entries.map((e) => ({
+        id: e.id,
+        date: e.date,
+        mealType: e.mealType,
+        productId: e.productId,
+        recipeId: e.recipeId,
+        grams: e.grams,
+        kcal: e.kcal,
+        protein: e.protein,
+        fat: e.fat,
+        carbs: e.carbs,
+        syncedAt: e.syncedAt,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+      }))
+    )
+  },
+
+  async markSynced(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const ts = now()
+    await db.update(mealEntries).set({ syncedAt: ts }).where(inArray(mealEntries.id, ids))
+  },
+
+  async summarizeByDate(date: string): Promise<NutritionSummary> {
+    const entries = await this.findByDate(date)
+    return entries.reduce(
+      (acc, e) => ({
+        kcal: acc.kcal + e.kcal,
+        protein: acc.protein + e.protein,
+        fat: acc.fat + e.fat,
+        carbs: acc.carbs + e.carbs,
+      }),
+      { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+    )
+  },
+
+  async deleteByDate(date: string): Promise<void> {
+    await db.delete(mealEntries).where(eq(mealEntries.date, date))
+  },
+
+  async countByProductId(productId: string): Promise<number> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    return rows.length
+  },
+
+  async countByRecipeId(recipeId: string): Promise<number> {
+    const rows = await db.select().from(mealEntries).where(eq(mealEntries.recipeId, recipeId))
+    return rows.length
+  },
+
+  /** Remove all diary rows that use this product (before deleting the product). Returns affected dates for cache refresh. */
+  async deleteByProductId(productId: string): Promise<string[]> {
+    const rows = await db
+      .select({ date: mealEntries.date })
+      .from(mealEntries)
+      .where(eq(mealEntries.productId, productId))
+    const dates = [...new Set(rows.map((r) => r.date))]
+    await db.delete(mealEntries).where(eq(mealEntries.productId, productId))
+    return dates
+  },
+
+  /** Remove all diary rows linked to a recipe. Returns affected dates for cache refresh. */
+  async deleteByRecipeId(recipeId: string): Promise<string[]> {
+    const rows = await db
+      .select({ date: mealEntries.date })
+      .from(mealEntries)
+      .where(eq(mealEntries.recipeId, recipeId))
+    const dates = [...new Set(rows.map((r) => r.date))]
+    await db.delete(mealEntries).where(eq(mealEntries.recipeId, recipeId))
+    return dates
+  },
+
+  /** After product macros change: recompute kcal/BЖУ for every entry using this product. */
+  async recalculateNutritionForProductId(productId: string): Promise<string[]> {
+    const [productRow] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
+    if (!productRow) return []
+
+    const entries = await db.select().from(mealEntries).where(eq(mealEntries.productId, productId))
+    if (entries.length === 0) return []
+
+    const ts = now()
+    const dates = new Set<string>()
+    for (const e of entries) {
+      const n = calcNutritionFromGrams(productRow, e.grams)
+      await db
+        .update(mealEntries)
+        .set({
+          kcal: n.kcal,
+          protein: n.protein,
+          fat: n.fat,
+          carbs: n.carbs,
+          syncedAt: null,
+          updatedAt: ts,
+        })
+        .where(eq(mealEntries.id, e.id))
+      dates.add(e.date)
+    }
+    return [...dates]
+  },
+}
